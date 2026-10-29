@@ -129,14 +129,13 @@
       if (!g || g.winner != null) return;
       const auto = i => g.players[i].bot || !g.players[i].connected;
       const pd = g.pending;
-      // While a reaction window is open the turn clock is paused, so just check back later.
-      const wait = pd && pd.kind === 'window' ? 1000 : Math.max(0, g.phaseDeadline - Date.now()) + 50;
+      // While a reaction window or timed pick is open the turn clock is paused, so just check back later.
+      const wait = pd && pd.deadline ? 1000 : Math.max(0, g.phaseDeadline - Date.now()) + 50;
       this.turnTimer = setTimeout(() => this.turnTimeout(), wait);
+      if (pd && pd.deadline) this.windowTimer = setTimeout(() => { if (g.timeout()) this.update(); else this.schedule(); }, Math.max(0, pd.deadline - Date.now()) + 50);
       let who;
-      if (pd && pd.kind === 'window') {
-        who = pd.waiting.find(auto);
-        this.windowTimer = setTimeout(() => { if (g.timeout()) this.update(); else this.schedule(); }, Math.max(0, pd.deadline - Date.now()) + 50);
-      } else if (pd) who = auto(pd.player) ? pd.player : undefined;
+      if (pd && pd.kind === 'window') who = pd.waiting.find(auto);
+      else if (pd) who = auto(pd.player) ? pd.player : undefined;
       else who = auto(g.turn) ? g.turn : undefined;
       if (who === undefined) return;
       this.botTimer = setTimeout(() => {
@@ -150,7 +149,8 @@
     turnTimeout() {
       const g = this.game;
       if (!g || g.winner != null) return;
-      if (Date.now() < g.phaseDeadline - 200 || (g.pending && g.pending.kind === 'window')) { this.schedule(); return; }
+      // Reaction windows and timed picks (raids) pause the turn clock; they have their own deadlines.
+      if (Date.now() < g.phaseDeadline - 200 || (g.pending && g.pending.deadline)) { this.schedule(); return; }
       const who = g.turn;
       if (g.phase === 'draw') {
         g.say(`⏳ ${g.name(who)} draws automatically.`);

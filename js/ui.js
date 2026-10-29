@@ -72,27 +72,75 @@
   // ---------- title & menus ----------
   function title() {
     return `<div class="title">
-      <div class="title-row">
-        <div class="laurel">${R.laurel(-1, { w: 120, h: 190, leaves: 10 })}</div>
-        <h1><span class="t1">Rivals</span><span class="t2"><small>of</small> Olympus</span></h1>
-        <div class="laurel">${R.laurel(1, { w: 120, h: 190, leaves: 10 })}</div>
-      </div>
-      <div class="plaque"><i>◆</i> Card Game <i>◆</i></div>
+      <div class="crest">${R.laurel(-1, { w: 70, h: 110, leaves: 8, fill: '#e8b54a', stroke: '#8a5a1c' })}${R.icon('temple', 'crest-ico')}${R.laurel(1, { w: 70, h: 110, leaves: 8, fill: '#e8b54a', stroke: '#8a5a1c' })}</div>
+      <h1><span class="t1">Rivals</span><span class="t-of"><i></i>of<i></i></span><span class="t2">Olympus</span></h1>
+      <p class="tagline">A card game of gods, raids &amp; rival city-states</p>
     </div>`;
   }
 
   const btn = (label, attrs, cls) => `<button class="gbtn ${cls || ''}" ${attrs}><span class="key l"></span>${label}<span class="key r"></span></button>`;
+  const mbtn = (go, label, icon, cls) => `<button class="mbtn ${cls || ''}" data-go="${go}"><span class="mbtn-ico">${R.icon(icon)}</span><span class="mbtn-label">${label}</span><span class="mbtn-arrow">›</span></button>`;
 
   function menu() {
     ui.modal = null;
     setScreen('menu', `<div class="menu">${title()}
-      <nav class="menu-buttons">
-        ${btn('Play', 'data-go="play"', 'big')}
-        ${btn('How to Play', 'data-go="rules"')}
-        ${btn('Settings', 'data-go="settings"')}
-        ${btn('Credits', 'data-go="credits"')}
-        ${btn('Quit', 'data-go="quit"')}
-      </nav></div>`);
+      <nav class="menu-panel">
+        ${mbtn('play', 'Play', 'swords', 'primary')}
+        ${mbtn('cards', 'Cards', 'cardsIcon')}
+        ${mbtn('rules', 'How to Play', 'scroll')}
+        ${mbtn('settings', 'Settings', 'cog')}
+        ${mbtn('credits', 'Credits', 'lyre')}
+        ${mbtn('quit', 'Quit', 'exitDoor')}
+      </nav>
+      <footer class="menu-foot">2–5 players · Play online with friends or against the computer</footer></div>`);
+  }
+
+  // ---------- card gallery ----------
+  const GALLERY = [
+    ['all', 'All'], ['resource', 'Resources'], ['raid', 'Raids'], ['god', 'God Actions'], ['reaction', 'Reactions'],
+    ['hidden', 'Hidden & Events'], ['fleet', 'Fleet'], ['polis', 'Polis'], ['treasure', 'Treasure'],
+    ['blessing', 'Blessings'], ['chaos', 'Chaos'], ['hero', 'Heroes & Shields'],
+  ];
+  function galleryMatch(f, d) {
+    switch (f) {
+      case 'all': return true;
+      case 'raid': return !!d.raid;
+      case 'god': return d.type === 'action' && !d.raid;
+      case 'hidden': return d.type === 'hidden' || d.type === 'event';
+      case 'fleet': case 'polis': case 'treasure': return d.type === 'point' && d.cat === f;
+      default: return d.type === f;
+    }
+  }
+
+  function heroCard(key) {
+    const h = R.HEROES[key];
+    return `<div class="card t-hero" title="${esc(h.name)}">
+      <div class="card-head"><span class="card-name">${esc(h.name)}</span></div>
+      <div class="card-art">${R.icon(key, 'art-ico')}</div>
+      <div class="card-type">Hero</div><div class="card-text">${esc(h.text)}</div></div>`;
+  }
+  const shieldCard = () => `<div class="card t-shield" title="Shield">
+      <div class="card-head"><span class="card-name">Shield</span></div>
+      <div class="card-art">${R.icon('aegis', 'art-ico')}</div>
+      <div class="card-type">Shield</div><div class="card-text">Used in raids. If the raider picks a Shield, the raid fails.</div></div>`;
+
+  function gallery() {
+    const f = ui.galleryFilter || 'all';
+    const items = [];
+    Object.keys(C).forEach(key => {
+      const d = C[key];
+      if (!galleryMatch(f, d)) return;
+      items.push(`<div class="g-item">${card(key, { cls: 'g-card' })}<span class="g-count">×${d.n}<small>${d.deck === 'agora' ? 'Agora' : 'Oracle'}${d.noTwo ? ' · not in 2-player' : ''}</small></span></div>`);
+    });
+    if (f === 'all' || f === 'hero') {
+      Object.keys(R.HEROES).forEach(k => items.push(`<div class="g-item">${heroCard(k).replace('class="card t-hero"', 'class="card t-hero g-card"')}<span class="g-count">×1<small>Hero</small></span></div>`));
+      items.push(`<div class="g-item">${shieldCard().replace('class="card t-shield"', 'class="card t-shield g-card"')}<span class="g-count">×25<small>Shield pile</small></span></div>`);
+    }
+    setScreen('cards', `<div class="gallery-page"><div class="gallery">
+      <header class="gallery-head"><h2>The Cards</h2><p>193 cards: 110 in the Oracle deck, 47 in the Agora, 25 Shields, 6 Heroes and 5 reference cards. Click a card to look closer.</p>
+        ${btn('Back', 'data-go="menu"', 'ghost small')}</header>
+      <div class="tabs">${GALLERY.map(([k, label]) => `<button class="tab ${f === k ? 'on' : ''}" data-act="galleryFilter" data-arg="${k}">${label}</button>`).join('')}</div>
+      <div class="gallery-grid">${items.join('')}</div></div></div>`);
   }
 
   function page(heading, body) {
@@ -157,7 +205,7 @@
       <h3>Buying</h3>
       <p>A 2-point card needs at least 1 point in its category already; a 3-point card needs 2. Blessings cost any 3 resources and give a permanent power. You may hold only one Blessing.</p>
       <h3>Raiding</h3>
-      <p>Choose a player and a category where they have face-up cards. Their cards there are shuffled face down with 1 Shield per card (heroes, Blessings and Shield Wall add more). You pick one blindly: a point card is yours, a Shield means the raid fails.</p>
+      <p>Choose a player and a category where they have face-up cards. Their cards there are shuffled face down with 1 Shield per card (heroes, Blessings and Shield Wall add more). You pick one blindly by clicking it: a point card is yours, a Shield means the raid fails. You have 15 seconds to pick (your turn clock pauses meanwhile); after that one is picked at random.</p>
       <h3>Reactions</h3>
       <p><b>Aegis</b> cancels any action card, and an Aegis can cancel an Aegis. <b>Shield Wall</b> adds 3 Shields when you are raided. When you can react, a bar appears at the bottom of the screen with a 15-second timer.</p>
       <h3>Chaos</h3>
@@ -180,7 +228,7 @@
       <div class="stack">${btn('Cancel', 'data-act="leave"', 'ghost')}</div>`));
   }
 
-  const SCREENS = { menu, play: playMenu, join: () => joinScreen(), settings, credits, rules: rulesPage, quit };
+  const SCREENS = { menu, play: playMenu, join: () => joinScreen(), settings, credits, rules: rulesPage, quit, cards: gallery };
   function go(name) { SCREENS[name](); }
 
   // ---------- lobby ----------
@@ -268,7 +316,7 @@
     const art = ui.art[key] ? `<img src="assets/cards/${key}.png" alt="">` : R.icon(key, 'art-ico');
     const pts = d.pts ? `<div class="pts" title="${d.pts} point${d.pts > 1 ? 's' : ''}">${d.pts}</div>` : '';
     const cost = d.type === 'point' || d.anyCost ? `<div class="cost">${costChips(d)}</div>` : '';
-    return `<div class="card t-${d.type} ${d.cat ? 'c-' + d.cat : ''} ${d.wild ? 'wild' : ''} ${o.cls || ''}" data-act="${act}" data-arg="${esc(arg)}" title="${esc(d.name)}">
+    return `<div class="card t-${d.type} ${d.cat ? 'c-' + d.cat : ''} ${d.res ? 'res-' + d.res : ''} ${d.wild ? 'wild' : ''} ${o.cls || ''}" data-act="${act}" data-arg="${esc(arg)}" title="${esc(d.name)}">
       <div class="card-head"><span class="card-name">${esc(d.name)}</span>${d.cat ? `<span class="cat-ico">${R.icon(d.cat)}</span>` : ''}</div>
       <div class="card-art">${art}${pts}</div>
       <div class="card-type">${typeLabel(d)}</div>
@@ -406,7 +454,7 @@
 
   function onView(v) {
     const pd = v.pending;
-    if (pd && pd.kind === 'window') ui.deadlineAt = Date.now() + pd.remaining;
+    if (pd && pd.remaining != null) ui.deadlineAt = Date.now() + pd.remaining;
     ui.turnDeadlineAt = Date.now() + (v.phaseRemaining || 0);
     const first = !ui.view;
     ui.view = v;
@@ -443,9 +491,11 @@
 
   function showReveal(v, r) {
     const raider = pname(v, r.raider), dfd = r.defender === v.you ? 'your' : `${v.players[r.defender].name}'s`;
-    if (r.ok) flash(`<div class="flash-ico">${R.icon(r.card)}</div><div>${esc(raider)} seized ${esc(dfd)}</div><div class="cardname">${esc(C[r.card].name)}</div>`, 'ok');
-    else if (r.saved) flash(`<div class="flash-ico">${R.icon('phoenixEmber')}</div><div>The Phoenix rises!</div><div class="cardname">${esc(C[r.card].name)} is saved</div>`, 'fail');
-    else flash(`<div class="flash-ico">${R.icon('aegis')}</div><div>A Shield!</div><div class="cardname">${esc(raider)}${r.raider === v.you ? 'r' : "'s"} raid fails</div>`, 'fail');
+    // The picked card flips over in the middle of the screen.
+    const face = c => `<div class="flip"><div class="flip-inner">${cardBack('flip-back')}<div class="flip-front">${c}</div></div></div>`;
+    if (r.ok) flash(`${face(card(r.card, { act: 'none' }))}<div>${esc(raider)} seized ${esc(dfd)}</div><div class="cardname">${esc(C[r.card].name)}</div>`, 'ok');
+    else if (r.saved) flash(`${face(card(r.card, { act: 'none' }))}<div>The Phoenix rises!</div><div class="cardname">${esc(C[r.card].name)} is saved</div>`, 'fail');
+    else flash(`${face(shieldCard())}<div>A Shield!</div><div class="cardname">${esc(raider)}${r.raider === v.you ? 'r' : "'s"} raid fails</div>`, 'fail');
   }
 
   // ---------- dialogs ----------
@@ -470,6 +520,27 @@
     return `<div class="react-bar"><div class="react-text"><b>${esc(actText(v, pd.act))}</b><span>${ask}</span></div>
       <div class="react-btns">${btn(pd.react === 'aegis' ? '🛡️ Raise Aegis' : '🧱 Shield Wall', `data-act="react" data-arg="${mine ? mine.id : ''}"`, 'primary')}
       ${btn('Pass', 'data-act="react" data-arg=""', 'ghost')}<span class="timer" data-deadline="1"></span></div></div>`;
+  }
+
+  // The defender's cards fanned face down. The raider clicks one within 15 seconds; everyone else watches.
+  function raidModal(v) {
+    const pd = v.pending, r = pd.raid, mine = pd.player === v.you, phoenix = pd.type === 'phoenix';
+    const whose = r.defender === v.you ? 'your' : esc(v.players[r.defender].name) + "'s";
+    const head = phoenix
+      ? `<h2>Phoenix Ember</h2><p>${mine ? `Your ${esc(C[r.saving].name)} is shuffled with 1 Shield. Find your card to keep it!` : `${esc(v.players[pd.player].name)} tries to save the ${esc(C[r.saving].name)}…`}</p>`
+      : `<h2>${esc(C[r.key].name)}</h2><p>${r.raider === v.you ? 'You raid' : esc(v.players[r.raider].name) + ' raids'} ${whose} ${R.icon(r.cat, 'inline')} ${R.CAT_NAME[r.cat]}</p>`;
+    const n = r.size, spread = Math.min(46, n * 7);
+    const fan = Array.from({ length: n }, (_, k) => {
+      const t = n > 1 ? k / (n - 1) - 0.5 : 0;
+      const style = `style="--rot:${(t * spread).toFixed(1)}deg;--lift:${(Math.abs(t) * 26).toFixed(0)}px;--i:${k}"`;
+      return cardBack('raid-card' + (mine ? ' pickable' : ''), `${style} ${mine ? `data-act="choose" data-arg="${k}"` : ''}`);
+    }).join('');
+    const odds = phoenix ? '' : `<span class="odds">${r.cards} card${r.cards > 1 ? 's' : ''} · ${r.shields} Shield${r.shields > 1 ? 's' : ''} · ${Math.round((r.cards / r.size) * 100)}% to steal</span>`;
+    const hint = mine ? (phoenix ? 'Pick a card.' : 'Pick a card! A Shield means the raid fails.') : `${esc(v.players[pd.player].name)} is picking…`;
+    return modal(`<div class="raid-head"><div class="raid-ico">${R.icon(phoenix ? 'phoenixEmber' : r.key)}</div><div class="raid-title">${head}</div>
+        <div class="pick-ring" data-pick-ring="1"><span data-deadline="1"></span></div></div>
+      <div class="raid-fan ${mine ? '' : 'watching'}">${fan}</div>
+      <p class="raid-hint"><b>${hint}</b>${odds}${mine ? '<small>If you don\'t pick in time, one is picked at random.</small>' : ''}</p>`, 'wide raid');
   }
 
   function choiceModal(v) {
@@ -581,6 +652,7 @@
     if (ui.screen === 'game' && v) {
       const pd = v.pending;
       if (v.winner != null) html = winModal(v);
+      else if (pd && pd.raid) html = raidModal(v);
       else if (pd && pd.kind === 'choice' && pd.player === v.you) html = choiceModal(v);
       else {
         if (ui.modal) html = localModal(v);
@@ -609,6 +681,11 @@
     document.querySelectorAll('[data-deadline]').forEach(el => {
       const s = Math.max(0, Math.ceil((ui.deadlineAt - Date.now()) / 1000));
       el.textContent = s + 's';
+    });
+    document.querySelectorAll('[data-pick-ring]').forEach(el => {
+      const left = Math.max(0, ui.deadlineAt - Date.now());
+      el.style.setProperty('--p', Math.min(100, (left / 15000) * 100) + '%');
+      el.classList.toggle('low', left <= 5000);
     });
     const v = ui.view;
     if (!v || ui.screen !== 'game') return;
@@ -671,6 +748,7 @@
     },
     motion(on) { store.set('motion', on === '1'); applyMotion(); settings(); },
     sound(on) { R.sfx.set({ on: on === '1' }); settings(); },
+    galleryFilter(f) { ui.galleryFilter = f; gallery(); },
     soundToggle() { R.sfx.set({ on: !R.sfx.on }); if (ui.view) renderGame(); },
     saveSettings() { readName(); toast('Settings saved.'); menu(); },
     rulesModal() { openModal({ type: 'rules' }); },
@@ -735,6 +813,7 @@
   const params = new URLSearchParams(location.search);
   const joinCode = params.get('join');
   if (joinCode) joinScreen(joinCode.toUpperCase().slice(0, 5));
-  else if (params.has('demo')) { ACTS.solo(); ui.net.addBot(); ui.net.start(); } // developer shortcut: straight into a bot game
+  else if (params.has('demo')) { ACTS.solo(); ui.net.addBot(); ui.net.start(); R.demoHost = ui.net; } // developer shortcut: straight into a bot game
+  else if (params.has('screen')) go(params.get('screen')); // developer shortcut, e.g. ?screen=cards
   else menu();
 })(window.ROO);

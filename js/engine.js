@@ -4,6 +4,7 @@
   const WINDOW_MS = 15000;
   const DRAW_MS = 10000;
   const MAIN_MS = 60000;
+  const PICK_MS = 15000;
 
   function shuffle(a) {
     for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
@@ -107,9 +108,11 @@
       return this.agora.shift();
     }
 
-    choice(player, prompt, options, ctx) {
+    // timeoutMs makes it a timed pick: the turn clock pauses, and a random option is taken when time runs out.
+    choice(player, prompt, options, ctx, timeoutMs) {
       if (!options.length) return;
       this.pending = { kind: 'choice', player, prompt, options, ctx };
+      if (timeoutMs) { this.pending.opened = Date.now(); this.pending.deadline = Date.now() + timeoutMs; }
     }
 
     // ---------- turn flow ----------
@@ -167,6 +170,7 @@
         if (!pd || pd.kind !== 'choice' || pd.player !== i) return 'You have no choice to make.';
         if (!pd.options.some(o => o.v === cmd.v)) return 'That is not one of the options.';
         this.pending = null;
+        this.windowClosed(pd);
         return this.resolveChoice(i, pd.ctx, cmd.v);
       }
       if (pd) return pd.kind === 'window' ? 'Waiting for reactions.' : `Waiting for ${this.name(pd.player)}.`;
@@ -203,13 +207,19 @@
       this.say(`🔁 ${p.name} trades 2 cards for 1 ${R.RES_NAME[res]}.`, 'trade');
     }
 
+    // Closes a reaction window or a timed choice whose time is up. Returns true if anything changed.
     timeout() {
       const pd = this.pending;
-      if (!pd || pd.kind !== 'window' || Date.now() < pd.deadline - 200) return false;
-      pd.waiting = [];
-      this.closeWindow();
-      this.checkWin(); this.seq++;
-      return true;
+      if (!pd || !pd.deadline || Date.now() < pd.deadline - 200) return false;
+      if (pd.kind === 'window') {
+        pd.waiting = [];
+        this.closeWindow();
+        this.checkWin(); this.seq++;
+        return true;
+      }
+      const pick = pd.options[Math.floor(Math.random() * pd.options.length)].v;
+      this.say(`⏳ Time's up: a card is picked at random for ${this.name(pd.player)}.`);
+      return !this.command(pd.player, { type: 'choose', v: pick });
     }
 
     checkWin() {
@@ -335,7 +345,7 @@
       act.pool = shuffle(cards.concat(Array(shields).fill(0)));
       this.say(`${this.name(dfd)} fans out ${plural(cards.length, 'card')} and ${plural(shields, 'Shield')} face down.`, 'shuffle');
       this.choice(a, `Pick one face-down card from ${this.name(dfd)}'s ${R.CAT_NAME[cat]}. Find a Shield and the raid fails.`,
-        act.pool.map((_, k) => ({ v: k })), { type: 'raidPick', act });
+        act.pool.map((_, k) => ({ v: k })), { type: 'raidPick', act }, PICK_MS);
     }
 
     raidSuccess(act, id) {
@@ -474,7 +484,7 @@
           if (this.blessingKey(dfd) === 'phoenixEmber') {
             this.say(`🔥 Phoenix Ember! ${this.name(dfd)} gets a chance to save the ${this.def(picked).name}.`);
             return this.choice(dfd, `Phoenix Ember: your ${this.def(picked).name} is shuffled with 1 Shield. Pick your card to keep it.`,
-              [{ v: 0 }, { v: 1 }], { type: 'phoenix', act, card: picked, two: shuffle([picked, 0]) });
+              [{ v: 0 }, { v: 1 }], { type: 'phoenix', act, card: picked, two: shuffle([picked, 0]) }, PICK_MS);
           }
           return this.raidSuccess(act, picked);
         }
@@ -561,6 +571,17 @@
           pending.act = { player: a.player, key: a.key, target: a.target, targetCard: a.target.card ? this.cards[a.target.card] : null, targetOwner: a.target.card ? this.ownerOf(a.target.card) : null };
         } else {
           pending.player = pd.player; pending.type = pd.ctx.type;
+          if (pd.deadline) pending.remaining = Math.max(0, pd.deadline - Date.now());
+          // Everyone sees the raid fan; only the raider gets to click it.
+          if (pd.ctx.type === 'raidPick' || pd.ctx.type === 'phoenix') {
+            const a = pd.ctx.act;
+            pending.raid = {
+              raider: a.player, defender: a.target.player, cat: a.target.cat, key: a.key,
+              size: pd.options.length, cards: pd.ctx.type === 'raidPick' ? a.pool.filter(Boolean).length : 1,
+            };
+            pending.raid.shields = pending.raid.size - pending.raid.cards;
+            if (pd.ctx.type === 'phoenix') pending.raid.saving = this.cards[pd.ctx.card];
+          }
           if (pd.player === me) { pending.prompt = pd.prompt; pending.options = pd.options.map(o => ({ v: o.v, card: o.card || null, label: o.label || null })); }
         }
       }
@@ -568,8 +589,8 @@
         you: me, seq: this.seq, target: this.opts.target, heroes: this.opts.heroes,
         turn: this.turn, turnNo: this.turnNo, actionsLeft: this.actionsLeft, buysLeft: this.buysLeft,
         // Reaction windows pause the turn clock, so report the time that was left when the window opened.
-        phase: this.phase, clockPaused: !!(pd && pd.kind === 'window'),
-        phaseRemaining: Math.max(0, this.phaseDeadline - (pd && pd.kind === 'window' && this.phase === 'main' ? pd.opened : Date.now())),
+        phase: this.phase, clockPaused: !!(pd && pd.opened),
+        phaseRemaining: Math.max(0, this.phaseDeadline - (pd && pd.opened && this.phase === 'main' ? pd.opened : Date.now())),
         players: this.players.map((p, i) => {
           const open = i === me || over;
           return {

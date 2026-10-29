@@ -1,0 +1,37 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>raid timeout test</title></head>
+<body><pre id="out">running…</pre>
+<script src="../js/cards.js"></script>
+<script src="../js/engine.js"></script>
+<script src="../js/bot.js"></script>
+<script src="../js/net.js"></script>
+<script>
+  // An idle human raids and never picks: after 15 seconds a card must be picked for them, and the
+  // turn clock must not have run down while they were picking. Run with a large --virtual-time-budget.
+  const R = window.ROO;
+  const host = new R.Host('Idle', { onLobby() {}, onView() {}, onError() {} });
+  host.seats.push({ name: 'Other', conn: null, bot: false });
+  host.start();
+  const g = host.game;
+  const ids = key => Object.keys(g.cards).map(Number).filter(id => g.cards[id] === key);
+  const take = id => { [g.oracle, g.oracleDiscard, g.agora, g.agoraDiscard, g.market].forEach(a => { const k = a.indexOf(id); if (k >= 0) a.splice(k, 1); }); g.players.forEach(p => [p.hand, p.table].forEach(a => { const k = a.indexOf(id); if (k >= 0) a.splice(k, 1); })); };
+  g.turn = 0; g.phase = 'main'; g.phaseDeadline = Date.now() + 20000; g.actionsLeft = 1;
+  g.players.forEach(p => p.hand = p.hand.filter(id => !['aegis', 'shieldWall'].includes(g.cards[id])));
+  const siege = ids('siege')[0]; take(siege); g.players[0].hand.push(siege);
+  const ship = ids('bireme')[0]; take(ship); g.players[1].table.push(ship);
+  g.command(0, { type: 'play', card: siege, target: { player: 1, cat: 'fleet' } });
+  const startedPick = g.pending && g.pending.ctx.type;
+  const before = g.phaseDeadline - Date.now();
+  host.update();
+  setTimeout(() => {
+    const log = g.log.map(l => l.text);
+    document.getElementById('out').textContent = [
+      `pick opened: ${startedPick}`,
+      `random pick logged: ${log.some(t => t.includes("Time's up: a card is picked"))}`,
+      `raid resolved: ${log.some(t => t.includes('seizes') || t.includes('raid fails'))}`,
+      `still player 0's turn after 17s (clock paused): ${g.turn === 0}`,
+      `turn time left before ${Math.round(before / 1000)}s, after ${Math.round((g.phaseDeadline - Date.now()) / 1000)}s`,
+    ].join('\n');
+  }, 17000);
+</script>
+</body></html>

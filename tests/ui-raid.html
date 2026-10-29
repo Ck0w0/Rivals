@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>raid pick check</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <!-- Headless screenshots catch animations mid-flight, so show the final layout. -->
+  <style>.raid-card { animation: none !important; }</style>
+</head>
+<body>
+  <!-- Open as ui-raid.html?demo: sets up a raid by you on a bot's Fleet so the pick screen appears. -->
+  <div id="scene"></div><div id="app"></div><div id="overlay"></div><div id="toasts"></div>
+  <script src="../js/icons.js"></script>
+  <script src="../js/sfx.js"></script>
+  <script src="../js/cards.js"></script>
+  <script src="../js/engine.js"></script>
+  <script src="../js/bot.js"></script>
+  <script src="../js/net.js"></script>
+  <script src="../js/scene.js"></script>
+  <script src="../js/ui.js"></script>
+  <script>
+    document.body.classList.add('no-motion');
+    const host = ROO.demoHost, g = host.game;
+    // Make it your turn, past the draw step, with a Siege in hand and three Fleet cards on the first bot's table.
+    const ids = key => Object.keys(g.cards).map(Number).filter(id => g.cards[id] === key);
+    const take = id => { [g.oracle, g.oracleDiscard, g.agora, g.agoraDiscard, g.market].forEach(a => { const k = a.indexOf(id); if (k >= 0) a.splice(k, 1); }); g.players.forEach(p => { [p.hand, p.table].forEach(a => { const k = a.indexOf(id); if (k >= 0) a.splice(k, 1); }); }); };
+    g.pending = null; g.turn = 0; g.phase = 'main'; g.phaseDeadline = Date.now() + 60000; g.actionsLeft = 1;
+    g.players.forEach(p => p.hand = p.hand.filter(id => !['aegis', 'shieldWall'].includes(g.cards[id])));
+    const siege = ids('siege')[0]; take(siege); g.players[0].hand.push(siege);
+    ['bireme', 'warGalley', 'armada'].forEach(k => { const id = ids(k)[0]; take(id); g.players[1].table.push(id); });
+    g.command(0, { type: 'play', card: siege, target: { player: 1, cat: 'fleet' } });
+    host.update();
+  </script>
+</body>
+</html>
