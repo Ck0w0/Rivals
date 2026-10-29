@@ -22,6 +22,9 @@ Drop images in and they appear automatically:
 |---|---|
 | `assets/menu-bg.png` | Menu background (replaces the drawn scene). Best without title or buttons, about 1600×1000. |
 | `assets/cards/<card>.png` | Picture in the middle of a card, e.g. `assets/cards/siege.png`, `assets/cards/goldenFleece.png`. Card names are the keys in `js/cards.js`. |
+| `assets/sfx/<name>.mp3` | Replaces a built-in sound. Names: click, draw, place, shuffle, coin, trade, raid, steal, clang, magic, zap, thunder, turn, tick, victory, defeat, error. |
+
+Card icons come from [game-icons.net](https://game-icons.net) (CC BY 3.0); the authors are credited in-game under Credits. Sounds are synthesised in the browser, so there are no sound files to license.
 
 ## Files
 
@@ -33,6 +36,9 @@ Drop images in and they appear automatically:
 | `js/net.js` | Hosting, joining and reconnecting |
 | `js/ui.js` | Menus, lobby and the game table |
 | `js/scene.js` | Drawn menu backdrop and laurels |
+| `js/icons.js` | Card and UI icons (from game-icons.net) |
+| `js/sfx.js` | Sound effects, generated with the Web Audio API |
+| `tests/sfx.html` | Click to hear each sound; also checks none are silent |
 | `tests/sim.html` | Opens in a browser and plays 400 bot games, checking that no card is ever lost |
 
 Open `index.html?demo` to jump straight into a bot game while developing.

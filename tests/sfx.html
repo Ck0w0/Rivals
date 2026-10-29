@@ -1,0 +1,18 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>sound check</title></head>
+<body><pre id="out">running…</pre>
+<p>Click a name to hear it:</p><div id="btns"></div>
+<script src="../js/sfx.js"></script>
+<script>
+  // Renders each synthesised sound offline and prints its peak level; anything near 0 is silent, above 1 clips.
+  ROO.sfx.selfTest().then(r => {
+    document.getElementById('out').textContent = Object.entries(r).map(([k, v]) => `${k}: ${v}${v < 0.02 ? '  <-- SILENT' : v > 1 ? '  <-- CLIPS' : ''}`).join('\n');
+  }, e => { document.getElementById('out').textContent = 'error: ' + e.stack; });
+  ROO.sfx.names.forEach(n => {
+    const b = document.createElement('button');
+    b.textContent = n;
+    b.onclick = () => ROO.sfx.play(n);
+    document.getElementById('btns').appendChild(b);
+  });
+</script>
+</body></html>

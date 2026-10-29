@@ -56,7 +56,8 @@
     key(id) { return this.cards[id]; }
     def(id) { return C[this.cards[id]]; }
     name(i) { return this.players[i].name; }
-    say(text) { this.log.push({ n: ++this.logSeq, text }); if (this.log.length > 100) this.log.shift(); }
+    // sfx names a sound from js/sfx.js that clients play when this line appears.
+    say(text, sfx) { this.log.push({ n: ++this.logSeq, text, sfx }); if (this.log.length > 100) this.log.shift(); }
     has(i, key) { return this.players[i].hand.some(id => this.cards[id] === key); }
     findInHand(i, key) { return this.players[i].hand.find(id => this.cards[id] === key); }
     blessingKey(i) { const b = this.players[i].blessing; return b ? this.cards[b] : null; }
@@ -76,7 +77,7 @@
       if (!this.oracle.length) {
         if (!this.oracleDiscard.length) return null;
         this.oracle = shuffle(this.oracleDiscard); this.oracleDiscard = [];
-        this.say('The Oracle deck is reshuffled.');
+        this.say('The Oracle deck is reshuffled.', 'shuffle');
       }
       return this.oracle.shift();
     }
@@ -88,7 +89,7 @@
         let id = this.drawOne(), guard = 0;
         while (id != null && this.cards[id] === 'loom' && guard++ < 10) {
           this.oracleDiscard.push(id); this.loomShuffle = true;
-          this.say(`🧵 ${p.name} drew the Loom of the Fates. The discards return to the deck at the end of this turn.`);
+          this.say(`🧵 ${p.name} drew the Loom of the Fates. The discards return to the deck at the end of this turn.`, 'magic');
           id = this.drawOne();
         }
         if (id == null) break;
@@ -101,7 +102,7 @@
       if (!this.agora.length) {
         if (!this.agoraDiscard.length) return null;
         this.agora = shuffle(this.agoraDiscard); this.agoraDiscard = [];
-        this.say('The Agora supply is reshuffled.');
+        this.say('The Agora supply is reshuffled.', 'shuffle');
       }
       return this.agora.shift();
     }
@@ -119,13 +120,14 @@
       this.actionsLeft = 1; this.buysLeft = 1;
       this.phase = 'draw';
       this.phaseDeadline = Date.now() + DRAW_MS;
-      this.say(`— ${p.name}'s turn —`);
+      this.say(`— ${p.name}'s turn —`, 'turn');
     }
 
     drawPhase(i) {
       const p = this.players[i];
       this.phase = 'main';
       this.phaseDeadline = Date.now() + MAIN_MS;
+      this.say(`${p.name} draws ${this.blessingKey(i) === 'oraclesSight' ? 3 : 2} cards.`, 'draw');
       if (this.blessingKey(i) === 'oraclesSight') {
         this.draw(i, 3);
         this.choice(i, "Oracle's Sight: choose a card to discard.", p.hand.map(id => ({ v: id, card: this.cards[id] })), { type: 'sight' });
@@ -140,7 +142,7 @@
     endTurn() {
       if (this.loomShuffle) {
         this.oracle = shuffle(this.oracle.concat(this.oracleDiscard)); this.oracleDiscard = []; this.loomShuffle = false;
-        this.say('🧵 The Loom of the Fates turns: the Oracle discards are shuffled back into the deck.');
+        this.say('🧵 The Loom of the Fates turns: the Oracle discards are shuffled back into the deck.', 'shuffle');
       }
       this.turn = (this.turn + 1) % this.players.length;
       this.turnNo++;
@@ -198,7 +200,7 @@
       }
       cards.forEach(id => { this.removeFrom(p.hand, id); this.oracleDiscard.push(id); });
       p.hand.push(got);
-      this.say(`🔁 ${p.name} trades 2 cards for 1 ${R.RES_NAME[res]}.`);
+      this.say(`🔁 ${p.name} trades 2 cards for 1 ${R.RES_NAME[res]}.`, 'trade');
     }
 
     timeout() {
@@ -219,7 +221,7 @@
           const pd = this.pending;
           if (pd && pd.ctx && pd.ctx.type === 'keepBlessing') this.agora.push(pd.ctx.both[1]);
           this.winner = i; this.pending = null;
-          this.say(`🏆 ${this.name(i)} has won the favour of the gods!`);
+          this.say(`🏆 ${this.name(i)} has won the favour of the gods!`, 'victory');
           return;
         }
       }
@@ -264,7 +266,7 @@
       this.removeFrom(p.hand, id); this.oracleDiscard.push(id);
       this.actionsLeft--;
       const act = { player: i, key, target: t };
-      this.say(this.describe(act));
+      this.say(this.describe(act), C[act.key].raid ? 'raid' : 'magic');
       this.openAegis(act, 0, null);
     }
 
@@ -289,10 +291,10 @@
       this.pending = null;
       this.windowClosed(pd);
       if (pd.react === 'aegis') {
-        this.say(`🛡️ ${p.name} raises the Aegis${pd.count % 2 ? ' and restores the action' : ' to cancel it'}!`);
+        this.say(`🛡️ ${p.name} raises the Aegis${pd.count % 2 ? ' and restores the action' : ' to cancel it'}!`, 'clang');
         this.openAegis(pd.act, pd.count + 1, i);
       } else {
-        this.say(`🧱 ${p.name} forms a Shield Wall! (+3 Shields)`);
+        this.say(`🧱 ${p.name} forms a Shield Wall! (+3 Shields)`, 'clang');
         pd.act.shieldWall = 3;
         this.raidReveal(pd.act);
       }
@@ -307,7 +309,7 @@
     }
 
     afterAegis(act, count) {
-      if (count % 2) { this.say(`${C[act.key].name} is cancelled.`); return; }
+      if (count % 2) { this.say(`${C[act.key].name} is cancelled.`, 'clang'); return; }
       if (C[act.key].raid) {
         const dfd = act.target.player;
         if (this.has(dfd, 'shieldWall')) {
@@ -331,7 +333,7 @@
       if (act.key === 'trojanHorse') shields -= 2;
       shields = Math.max(1, shields);
       act.pool = shuffle(cards.concat(Array(shields).fill(0)));
-      this.say(`${this.name(dfd)} fans out ${plural(cards.length, 'card')} and ${plural(shields, 'Shield')} face down.`);
+      this.say(`${this.name(dfd)} fans out ${plural(cards.length, 'card')} and ${plural(shields, 'Shield')} face down.`, 'shuffle');
       this.choice(a, `Pick one face-down card from ${this.name(dfd)}'s ${R.CAT_NAME[cat]}. Find a Shield and the raid fails.`,
         act.pool.map((_, k) => ({ v: k })), { type: 'raidPick', act });
     }
@@ -340,7 +342,7 @@
       const dfd = this.players[act.target.player], atk = this.players[act.player];
       this.removeFrom(dfd.table, id); atk.table.push(id);
       this.reveal = { n: ++this.revealSeq, ok: true, card: this.cards[id], raider: act.player, defender: act.target.player };
-      this.say(`💥 ${atk.name} seizes ${dfd.name}'s ${this.def(id).name}!`);
+      this.say(`💥 ${atk.name} seizes ${dfd.name}'s ${this.def(id).name}!`, 'steal');
       if (act.key === 'nightAmbush') { this.actionsLeft++; this.say(`🌙 Night Ambush: ${atk.name} may play another action.`); }
     }
 
@@ -350,7 +352,7 @@
       if (act.key === 'spartanRaid') { this.draw(a, 1); this.say(`${this.name(a)} draws 1 card (Spartan Raid).`); }
       if (act.key === 'pirateRaid') {
         const id = this.drawAgoraSkippingChaos();
-        if (id != null) { this.say(`🏴‍☠️ ${this.name(a)} plunders ${this.def(id).name} from the Agora supply.`); this.gain(a, id); }
+        if (id != null) { this.say(`🏴‍☠️ ${this.name(a)} plunders ${this.def(id).name} from the Agora supply.`, 'coin'); this.gain(a, id); }
       }
     }
 
@@ -369,19 +371,19 @@
         case 'aphrodite': {
           const o = this.ownerOf(t.card);
           this.removeFrom(this.players[o].table, t.card); p.table.push(t.card);
-          this.say(`💘 ${p.name} charms away ${this.name(o)}'s ${this.def(t.card).name}.`);
+          this.say(`💘 ${p.name} charms away ${this.name(o)}'s ${this.def(t.card).name}.`, 'steal');
           break;
         }
         case 'zeus': {
           const o = this.ownerOf(t.card);
           this.removeFrom(this.players[o].table, t.card); this.agoraDiscard.push(t.card);
-          this.say(`⚡ ${this.name(o)}'s ${this.def(t.card).name} is struck down.`);
+          this.say(`⚡ ${this.name(o)}'s ${this.def(t.card).name} is struck down.`, 'zap');
           break;
         }
         case 'hermes': {
           const v = this.players[t.player]; let k = 0;
           for (; k < 2 && v.hand.length; k++) p.hand.push(v.hand.splice(Math.floor(Math.random() * v.hand.length), 1)[0]);
-          this.say(`🪶 ${p.name} filches ${plural(k, 'card')} from ${v.name}.`);
+          this.say(`🪶 ${p.name} filches ${plural(k, 'card')} from ${v.name}.`, 'steal');
           break;
         }
         case 'athena': {
@@ -392,7 +394,7 @@
         case 'hera': {
           const v = this.players[t.player], b = v.blessing;
           v.blessing = null;
-          this.say(`🦚 ${p.name} takes ${v.name}'s ${this.def(b).name}.`);
+          this.say(`🦚 ${p.name} takes ${v.name}'s ${this.def(b).name}.`, 'steal');
           this.gainBlessing(i, b);
           break;
         }
@@ -411,7 +413,7 @@
         }
         case 'demeter':
           this.draw(i, 2); this.buysLeft++;
-          this.say(`🌾 ${p.name} draws 2 cards and may buy twice this turn.`);
+          this.say(`🌾 ${p.name} draws 2 cards and may buy twice this turn.`, 'draw');
           break;
         case 'hephaestus': {
           const opts = this.market.filter(id => id != null && R.payPlan(this.handCards(i), this.def(id), R.discountFor(this.who(i), this.def(id)) + 2))
@@ -424,7 +426,7 @@
           const hands = this.players.map(q => q.hand);
           this.players.forEach((q, j) => (q.hand = hands[(j - 1 + n) % n]));
           this.draw(i, 1);
-          this.say('🍇 Every hand passes to the left!');
+          this.say('🍇 Every hand passes to the left!', 'shuffle');
           break;
         }
       }
@@ -446,7 +448,7 @@
           break;
         case 'hades':
           this.removeFrom(this.oracleDiscard, v); p.hand.push(v);
-          this.say(`💀 ${p.name} bargains a card back from the underworld.`);
+          this.say(`💀 ${p.name} bargains a card back from the underworld.`, 'draw');
           break;
         case 'apollo': {
           const placed = ctx.placed.concat([v]), remaining = ctx.remaining.filter(id => id !== v);
@@ -467,7 +469,7 @@
         }
         case 'raidPick': {
           const act = ctx.act, picked = act.pool[v];
-          if (!picked) { this.say(`🛡️ A Shield! ${p.name}'s raid fails.`); return this.raidFailed(act); }
+          if (!picked) { this.say(`🛡️ A Shield! ${p.name}'s raid fails.`, 'clang'); return this.raidFailed(act); }
           const dfd = act.target.player;
           if (this.blessingKey(dfd) === 'phoenixEmber') {
             this.say(`🔥 Phoenix Ember! ${this.name(dfd)} gets a chance to save the ${this.def(picked).name}.`);
@@ -478,7 +480,7 @@
         }
         case 'phoenix':
           if (ctx.two[v]) {
-            this.say(`🔥 ${p.name} rescues the ${this.def(ctx.card).name}! The raid fails.`);
+            this.say(`🔥 ${p.name} rescues the ${this.def(ctx.card).name}! The raid fails.`, 'clang');
             this.reveal = { n: ++this.revealSeq, ok: false, saved: true, card: this.cards[ctx.card], raider: ctx.act.player, defender: i };
             return this.raidFailed(ctx.act, true);
           }
@@ -498,7 +500,7 @@
       plan.forEach(c => { this.removeFrom(p.hand, c); this.oracleDiscard.push(c); });
       if (!forge) this.buysLeft--;
       this.market[slot] = null;
-      this.say(`${p.name} buys ${d.name}${paid.length ? ' with ' + paid.join(', ') : ' for free'}.`);
+      this.say(`${p.name} buys ${d.name}${paid.length ? ' with ' + paid.join(', ') : ' for free'}.`, 'coin');
       this.refill();
       this.gain(i, id);
     }
@@ -523,7 +525,7 @@
 
     chaos(id) {
       const key = this.cards[id], n = this.players.length;
-      this.say(`🌩️ CHAOS — ${C[key].name}! ${C[key].text}`);
+      this.say(`🌩️ CHAOS — ${C[key].name}! ${C[key].text}`, 'thunder');
       if (key === 'titanomachy') {
         this.players.forEach(p => { this.oracleDiscard.push(...p.hand); p.hand = []; });
         this.players.forEach((p, i) => this.draw(i, 4));

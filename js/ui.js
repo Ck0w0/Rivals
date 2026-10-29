@@ -7,6 +7,8 @@
     ['Programming', 'Built with Claude'],
     ['Online play', 'PeerJS (WebRTC)'],
     ['Fonts', 'Cinzel & Alegreya Sans (Google Fonts)'],
+    ['Card icons', 'game-icons.net (CC BY 3.0) by Lorc, Delapouite, Skoll, Willdabeast, Caro Asercion, Cathelineau, DarkZaitzev and Pierre Leducq'],
+    ['Sound', 'Synthesised in the browser with the Web Audio API'],
   ];
   const NAMES = ['Kleon', 'Daphne', 'Nikias', 'Ione', 'Xanthe', 'Lykos', 'Melita', 'Doros'];
 
@@ -37,6 +39,7 @@
     const box = document.getElementById('toasts');
     const el = document.createElement('div');
     el.className = 'toast ' + (kind || '');
+    if (kind === 'error') R.sfx.play('error');
     el.textContent = text;
     box.appendChild(el);
     setTimeout(() => el.classList.add('out'), 3200);
@@ -125,8 +128,15 @@
       <div class="opt-row"><span>Animations</span>
         <button class="pill ${store.get('motion', true) ? 'on' : ''}" data-act="motion" data-arg="1">On</button>
         <button class="pill ${store.get('motion', true) ? '' : 'on'}" data-act="motion" data-arg="0">Off</button></div>
-      <p class="hint">Custom art: put a background at <code>assets/menu-bg.png</code> and card pictures at <code>assets/cards/&lt;card&gt;.png</code>. They appear automatically.</p>
+      <div class="opt-row"><span>Sound</span>
+        <button class="pill ${R.sfx.on ? 'on' : ''}" data-act="sound" data-arg="1">On</button>
+        <button class="pill ${R.sfx.on ? '' : 'on'}" data-act="sound" data-arg="0">Off</button></div>
+      <div class="opt-row"><span>Volume</span><input id="vol" class="slider" type="range" min="0" max="100" value="${Math.round(R.sfx.volume * 100)}"></div>
+      <p class="hint">Custom art: put a background at <code>assets/menu-bg.png</code> and card pictures at <code>assets/cards/&lt;card&gt;.png</code>. Custom sounds go in <code>assets/sfx/&lt;name&gt;.mp3</code>. They all appear automatically.</p>
       <div class="stack">${btn('Save', 'data-act="saveSettings"', 'big')}${btn('Back', 'data-go="menu"', 'ghost')}</div>`));
+    const vol = document.getElementById('vol');
+    vol.addEventListener('input', () => R.sfx.set({ volume: vol.value / 100 }));
+    vol.addEventListener('change', () => R.sfx.play('coin'));
   }
 
   function credits() {
@@ -219,78 +229,88 @@
   // ---------- cards ----------
   function typeLabel(d) {
     switch (d.type) {
-      case 'resource': return 'Resource';
-      case 'action': return d.raid ? 'Raid Action' : 'God Action';
+      case 'resource': return d.wild ? 'Wild Resource' : 'Resource';
+      case 'action': return d.raid ? 'Raid' : 'God Action';
       case 'reaction': return 'Reaction';
-      case 'hidden': return 'Hidden Point';
+      case 'hidden': return `Hidden · ${R.CAT_NAME[d.cat]}`;
       case 'event': return 'Event';
-      case 'point': return `${R.CAT_NAME[d.cat]} · ${d.pts} pt${d.pts > 1 ? 's' : ''}`;
+      case 'point': return R.CAT_NAME[d.cat];
       case 'blessing': return 'Blessing';
       case 'chaos': return 'Chaos';
     }
     return '';
   }
 
+  const resToken = r => `<span class="res r-${r}" title="${R.RES_NAME[r]}">${R.icon(r)}</span>`;
+
   function costChips(d) {
     if (d.anyCost) return Array(d.anyCost).fill('<span class="res r-any" title="Any resource">?</span>').join('');
     let out = '';
-    for (const r in d.cost) for (let k = 0; k < d.cost[r]; k++) out += `<span class="res r-${r}" title="${R.RES_NAME[r]}">${R.RES_ICON[r]}</span>`;
+    for (const r in d.cost) for (let k = 0; k < d.cost[r]; k++) out += resToken(r);
     return out;
   }
 
   function cardText(d) {
-    if (d.type === 'point') return d.pts > 1 ? `Needs ${d.pts - 1} ${R.CAT_NAME[d.cat]} pt${d.pts > 2 ? 's' : ''} first.` : 'No requirement.';
+    if (d.type === 'point') return d.pts > 1 ? `Requires ${d.pts - 1} ${R.CAT_NAME[d.cat]} point${d.pts > 2 ? 's' : ''}.` : 'No requirement.';
     return d.text;
   }
 
+  function cardBack(cls, attrs) {
+    return `<div class="card back ${cls || ''}" ${attrs || ''}><div class="back-inner">${R.icon('laurels')}</div></div>`;
+  }
+
+  // Layout follows the printing spec: name and category at the top, art in the middle, text and cost at the bottom.
   function card(key, o) {
     o = o || {};
     const d = C[key];
     const act = o.act || (o.zone === 'hand' ? 'handCard' : o.zone === 'market' ? 'marketCard' : 'zoom');
     const arg = o.arg != null ? o.arg : o.id != null ? o.id : key;
-    const foot = d.type === 'point' || d.anyCost
-      ? `<div class="card-foot"><div class="cost">${costChips(d)}</div>${d.pts ? `<div class="pts">${d.pts}</div>` : ''}</div>` : '';
-    const art = ui.art[key] ? `<img src="assets/cards/${key}.png" alt="">` : `<span class="glyph">${d.glyph}</span>`;
-    return `<div class="card t-${d.type} ${d.cat ? 'c-' + d.cat : ''} ${d.raid ? 'raid' : ''} ${o.cls || ''}" data-act="${act}" data-arg="${esc(arg)}" title="${esc(d.name)}">
-      <div class="card-head"><span class="card-name">${esc(d.name)}</span>${d.cat ? `<span class="cat-ico">${R.CAT_ICON[d.cat]}</span>` : ''}</div>
-      <div class="card-art">${art}</div>
+    const art = ui.art[key] ? `<img src="assets/cards/${key}.png" alt="">` : R.icon(key, 'art-ico');
+    const pts = d.pts ? `<div class="pts" title="${d.pts} point${d.pts > 1 ? 's' : ''}">${d.pts}</div>` : '';
+    const cost = d.type === 'point' || d.anyCost ? `<div class="cost">${costChips(d)}</div>` : '';
+    return `<div class="card t-${d.type} ${d.cat ? 'c-' + d.cat : ''} ${d.wild ? 'wild' : ''} ${o.cls || ''}" data-act="${act}" data-arg="${esc(arg)}" title="${esc(d.name)}">
+      <div class="card-head"><span class="card-name">${esc(d.name)}</span>${d.cat ? `<span class="cat-ico">${R.icon(d.cat)}</span>` : ''}</div>
+      <div class="card-art">${art}${pts}</div>
       <div class="card-type">${typeLabel(d)}</div>
-      <div class="card-text">${esc(cardText(d))}</div>${foot}</div>`;
+      <div class="card-text">${esc(cardText(d))}</div>${cost}</div>`;
   }
 
   const pname = (v, i) => (i === v.you ? 'You' : v.players[i].name);
 
-  function scoreRow(p) {
-    return `<div class="scores">${R.CATS.map(cat => {
+  // One ring per category, filling up towards the victory target.
+  function medals(p, big) {
+    return `<div class="medals ${big ? 'big' : ''}">${R.CATS.map(cat => {
       const pts = p.points[cat], pct = Math.min(100, (pts / p.needed) * 100);
-      return `<div class="score c-${cat} ${pts >= p.needed ? 'done' : ''}" title="${R.CAT_NAME[cat]}">
-        <span class="ico">${R.CAT_ICON[cat]}</span><b>${pts}</b><span class="of">/${p.needed}</span>
-        <div class="bar"><i style="width:${pct}%"></i></div></div>`;
-    }).join('')}</div>`;
+      return `<div class="medal c-${cat} ${pts >= p.needed ? 'done' : ''}" style="--p:${pct}%" title="${R.CAT_NAME[cat]}: ${pts} of ${p.needed}">
+        <div class="medal-in">${R.icon(cat)}<b>${pts}</b></div></div>`;
+    }).join('')}<span class="need">/${p.needed}</span></div>`;
   }
 
-  function tableau(p) {
-    const groups = R.CATS.map(cat => {
-      const cards = p.table.filter(c => C[c.key].cat === cat).sort((a, b) => C[b.key].pts - C[a.key].pts);
-      if (!cards.length) return '';
-      return `<div class="tab-cat">${cards.map(c => `<span class="chip c-${cat}" data-act="zoom" data-arg="${c.key}">${esc(C[c.key].name)} <b>${C[c.key].pts}</b></span>`).join('')}</div>`;
-    }).join('');
-    return `<div class="tableau">${groups || '<span class="empty-tab">No face-up cards yet</span>'}</div>`;
+  function tableau(p, emptyText) {
+    const cards = p.table.slice().sort((a, b) => R.CATS.indexOf(C[a.key].cat) - R.CATS.indexOf(C[b.key].cat) || C[b.key].pts - C[a.key].pts);
+    if (!cards.length) return `<div class="tableau"><span class="empty-tab">${emptyText || 'No face-up cards'}</span></div>`;
+    return `<div class="tableau">${cards.map(c => {
+      const d = C[c.key];
+      return `<span class="chip c-${d.cat}" data-act="zoom" data-arg="${c.key}" title="${esc(d.name)}">${R.icon(d.cat)}${esc(d.name)}<b>${d.pts}</b></span>`;
+    }).join('')}</div>`;
   }
 
   function badges(p) {
     let out = '';
-    if (p.hero) { const h = R.HEROES[p.hero]; out += `<span class="badge hero" title="${esc(h.text)}">${h.glyph} ${esc(h.name)}</span>`; }
-    if (p.blessing) out += `<span class="badge blessing" data-act="zoom" data-arg="${p.blessing}" title="${esc(C[p.blessing].text)}">${C[p.blessing].glyph} ${esc(C[p.blessing].name)}</span>`;
+    if (p.hero) { const h = R.HEROES[p.hero]; out += `<span class="badge hero" title="${esc(h.name)}: ${esc(h.text)}">${R.icon(p.hero)}${esc(h.name)}</span>`; }
+    if (p.blessing) out += `<span class="badge blessing" data-act="zoom" data-arg="${p.blessing}" title="${esc(C[p.blessing].text)}">${R.icon(p.blessing)}${esc(C[p.blessing].name)}</span>`;
     return out ? `<div class="badges">${out}</div>` : '';
   }
 
+  const avatar = p => `<div class="avatar">${p.hero ? R.icon(p.hero) : `<span>${esc(p.name.charAt(0).toUpperCase())}</span>`}</div>`;
+
   function oppPanel(v, i) {
     const p = v.players[i];
-    return `<div class="opp panel ${v.turn === i && v.winner == null ? 'active' : ''} ${p.connected ? '' : 'offline'}">
-      <div class="opp-head"><span class="opp-name">${p.bot ? '🤖 ' : ''}${esc(p.name)}${p.connected ? '' : ' <em>(offline)</em>'}</span>
-        <span class="hand-count" title="Cards in hand"><i class="mini-back"></i>${p.handCount}</span></div>
-      ${badges(p)}${scoreRow(p)}${tableau(p)}</div>`;
+    return `<div class="seat-box ${v.turn === i && v.winner == null ? 'active' : ''} ${p.connected ? '' : 'offline'}">
+      <div class="seat-top">${avatar(p)}
+        <div class="who"><b>${esc(p.name)}</b><small>${p.bot ? 'Computer' : p.connected ? 'Player' : 'Offline · a bot is playing'}</small></div>
+        <div class="mini-fan" title="${p.handCount} cards in hand">${'<i></i>'.repeat(Math.min(p.handCount, 6))}<b>${p.handCount}</b></div></div>
+      ${medals(p)}${badges(p)}${tableau(p)}</div>`;
   }
 
   // ---------- game screen ----------
@@ -304,17 +324,18 @@
   }
 
   function statusText(v) {
-    if (v.winner != null) return `🏆 ${esc(v.players[v.winner].name)} wins!`;
+    if (v.winner != null) return `${esc(v.players[v.winner].name)} wins!`;
     const pd = v.pending;
     if (pd && pd.kind === 'window') return pd.react === 'aegis' ? 'Will anyone raise the Aegis?' : `${esc(pname(v, pd.act.target.player))} may form a Shield Wall…`;
     if (pd) return pd.player === v.you ? 'Make your choice.' : `${esc(v.players[pd.player].name)} is choosing…`;
-    if (v.turn === v.you) return v.phase === 'draw' ? 'Your turn: draw your cards!' : 'Play an action, buy from the Agora, then end your turn.';
+    if (v.turn === v.you) return v.phase === 'draw' ? 'Your turn: draw your cards!' : 'Your turn: act, buy, then end your turn.';
     return `${esc(v.players[v.turn].name)}'s turn${v.phase === 'draw' ? ' (drawing)' : ''}`;
   }
 
   // Counts down the current phase; it reads "paused" while a reaction window is open.
   const turnClock = v => v.winner == null
     ? `<span class="turn-clock ${v.clockPaused ? 'paused' : ''}" data-turn-clock="1" title="${v.phase === 'draw' ? 'Time left to draw' : 'Time left this turn'}"></span>` : '';
+  const clockRing = v => `<div class="clock-ring ${v.clockPaused ? 'paused' : ''}" data-turn-ring="1"><span data-turn-clock="1"></span></div>`;
 
   function renderGame() {
     const v = ui.view, me = v.players[v.you], n = v.players.length, free = isFree(v);
@@ -322,42 +343,63 @@
     const others = [];
     for (let k = 1; k < n; k++) others.push((v.you + k) % n);
     const hand = me.hand.slice().sort((a, b) => order(a.key) - order(b.key));
+    const drawN = me.blessing === 'oraclesSight' ? 3 : 2;
     const prevLog = document.getElementById('log');
     const stick = !prevLog || prevLog.scrollTop + prevLog.clientHeight >= prevLog.scrollHeight - 30;
+    const controls = !myTurn
+      ? `<div class="ctrl-wait">Waiting for<b>${esc(v.winner != null ? '—' : v.players[v.turn].name)}</b></div>`
+      : v.phase === 'draw'
+        ? `${clockRing(v)}${btn(`Draw ${drawN}`, `data-act="draw" ${mustDraw(v) ? '' : 'disabled'}`, 'primary draw-btn')}<div class="hint">Draws for you when time runs out</div>`
+        : `${clockRing(v)}<div class="pips"><span class="pip ${v.actionsLeft ? 'on' : ''}" title="Actions left">Action ${v.actionsLeft}</span><span class="pip ${v.buysLeft ? 'on' : ''}" title="Buys left">Buy ${v.buysLeft}</span></div>
+           ${btn('Trade 2 → 1', `data-act="tradeOpen" ${free && me.hand.length >= 2 ? '' : 'disabled'} title="Discard 2 cards to take 1 resource card of your choice"`, 'small')}
+           ${btn('End Turn', `data-act="end" ${free ? '' : 'disabled'}`, 'primary')}`;
+    const handHTML = hand.map(c => card(c.key, { id: c.id, zone: 'hand',
+      cls: (free && v.actionsLeft && C[c.key].type === 'action' ? 'playable ' : '') + (C[c.key].type === 'hidden' ? 'secret' : '') })).join('');
     setScreen('game', `<div class="game">
       <header class="topbar">
         <div class="brand">Rivals <i>of</i> Olympus</div>
         <div class="status ${free || mustDraw(v) ? 'mine' : ''}">${statusText(v)} ${turnClock(v)}</div>
-        <div class="top-actions"><span class="tgt">Target ${v.target} · Round ${Math.ceil(v.turnNo / n)}</span>
+        <div class="top-actions"><span class="tgt">First to ${v.target} · Round ${Math.ceil(v.turnNo / n)}</span>
+          <button class="icon-btn ${R.sfx.on ? '' : 'off'}" data-act="soundToggle" title="Sound ${R.sfx.on ? 'on' : 'off'}">${R.icon('lyre')}</button>
           <button class="gbtn small" data-act="rulesModal">Rules</button><button class="gbtn small ghost" data-act="leave">Leave</button></div>
       </header>
       <section class="opps">${others.map(i => oppPanel(v, i)).join('')}</section>
-      <section class="mid">
-        <div class="agora panel">
-          <div class="panel-head"><h3>The Agora</h3>
-            <span class="piles"><span title="Oracle deck">🂠 ${v.oracleCount}</span><span title="Oracle discard">♻ ${v.oracleDiscardCount}</span><span title="Agora supply">🏛 ${v.agoraCount}</span></span></div>
+      <section class="board">
+        <div class="piles">
+          <div class="pile" title="Oracle deck: you draw from here">${cardBack('stack')}<b class="count">${v.oracleCount}</b><span>Oracle</span></div>
+          <div class="pile" title="Oracle discard pile">${v.oracleDiscardTop ? card(v.oracleDiscardTop, { cls: 'stack' }) : '<div class="card empty stack"></div>'}<b class="count">${v.oracleDiscardCount}</b><span>Discard</span></div>
+          <div class="pile" title="Agora supply: refills the market">${cardBack('stack agora-back')}<b class="count">${v.agoraCount}</b><span>Agora</span></div>
+        </div>
+        <div class="agora">
+          <h3 class="board-title"><span>The Agora</span></h3>
           <div class="market">${v.market.map(c => c ? card(c.key, { id: c.id, zone: 'market', cls: free && v.buysLeft && canBuy(v, c.key) ? 'affordable' : '' }) : '<div class="card empty"></div>').join('')}</div>
         </div>
-        <div class="chronicle panel"><div class="panel-head"><h3>Chronicle</h3></div>
-          <div class="log" id="log">${v.log.map(l => `<p class="${/^—/.test(l.text) ? 'turn' : ''}">${esc(l.text)}</p>`).join('')}</div></div>
       </section>
-      <section class="me panel ${myTurn ? 'active' : ''}">
-        <div class="me-info"><div class="opp-name">${esc(me.name)} <em>(you)</em></div>${badges(me)}${scoreRow(me)}</div>
-        <div class="me-table">${tableau(me)}</div>
-        <div class="turn-ctrl">${!myTurn ? '<div class="hint">Waiting for your turn…</div>'
-          : v.phase === 'draw'
-          ? `<div class="hint">Draw ${me.blessing === 'oraclesSight' ? 3 : 2} cards. They are drawn for you when the timer runs out.</div>
-             ${btn(`🂠 Draw ${me.blessing === 'oraclesSight' ? 3 : 2}`, `data-act="draw" ${mustDraw(v) ? '' : 'disabled'}`, 'primary draw-btn')}`
-          : `<div class="pips"><span class="pip ${v.actionsLeft ? 'on' : ''}">⚡ Action ${v.actionsLeft}</span><span class="pip ${v.buysLeft ? 'on' : ''}">🏛 Buy ${v.buysLeft}</span></div>
-             ${btn('🔁 Trade 2 → 1', `data-act="tradeOpen" ${free && me.hand.length >= 2 ? '' : 'disabled'} title="Discard 2 cards to take 1 resource card of your choice"`, 'small')}
-             ${btn('End Turn', `data-act="end" ${free ? '' : 'disabled'}`, 'primary')}`}</div>
+      <aside class="chronicle"><h3>Chronicle</h3>
+        <div class="log" id="log">${v.log.map(l => `<p class="${/^—/.test(l.text) ? 'turn' : ''}">${esc(l.text)}</p>`).join('')}</div></aside>
+      <section class="mat ${myTurn ? 'active' : ''}">
+        <div class="mat-info">
+          <div class="seat-top">${avatar(me)}<div class="who"><b>${esc(me.name)}</b><small>You · ${me.hand.length} cards</small></div></div>
+          ${medals(me, true)}${badges(me)}${tableau(me, 'Buy from the Agora to score points')}</div>
+        <div class="hand" id="hand">${handHTML || '<span class="hint">Your hand is empty.</span>'}</div>
+        <div class="mat-ctrl">${controls}</div>
       </section>
-      <section class="hand-wrap"><div class="hand">${hand.map(c => card(c.key, { id: c.id, zone: 'hand',
-        cls: (free && v.actionsLeft && C[c.key].type === 'action' ? 'playable ' : '') + (C[c.key].type === 'hidden' ? 'secret' : '') })).join('') || '<span class="hint">Your hand is empty.</span>'}</div></section>
     </div>`, true);
+    fitHand();
     const log = document.getElementById('log');
     if (stick) log.scrollTop = log.scrollHeight;
   }
+
+  // Overlap hand cards just enough that they all fit on one row.
+  function fitHand() {
+    const h = document.getElementById('hand');
+    if (!h) return;
+    const cards = h.querySelectorAll('.card'), n = cards.length;
+    if (n < 2) { h.style.removeProperty('--gap'); return; }
+    const cw = cards[0].offsetWidth, avail = h.clientWidth - 24;
+    h.style.setProperty('--gap', Math.min(8, (avail - cw * n) / (n - 1)) + 'px');
+  }
+  window.addEventListener('resize', fitHand);
 
   const ORDER = ['action', 'reaction', 'resource', 'hidden', 'event'];
   const order = key => ORDER.indexOf(C[key].type) * 100 + Object.keys(C).indexOf(key);
@@ -381,13 +423,29 @@
       if (!first) showReveal(v, v.reveal);
       ui.lastReveal = v.reveal.n;
     }
+    playLogSounds(v, first);
+  }
+
+  // Each new log line may carry a sound; play the first few, slightly staggered.
+  function playLogSounds(v, first) {
+    const fresh = v.log.filter(l => l.n > (ui.lastLogN || 0));
+    ui.lastLogN = v.log.length ? v.log[v.log.length - 1].n : 0;
+    if (first) return;
+    const names = [];
+    fresh.forEach(l => {
+      let s = l.sfx;
+      if (s === 'turn' && v.turn !== v.you) s = null;
+      if (s === 'victory' && v.winner !== v.you) s = 'defeat';
+      if (s && !names.includes(s)) names.push(s);
+    });
+    names.slice(0, 3).forEach((s, k) => setTimeout(() => R.sfx.play(s), k * 220));
   }
 
   function showReveal(v, r) {
     const raider = pname(v, r.raider), dfd = r.defender === v.you ? 'your' : `${v.players[r.defender].name}'s`;
-    if (r.ok) flash(`<div class="big">💥</div><div>${esc(raider)} seized ${esc(dfd)}</div><div class="cardname">${esc(C[r.card].name)}</div>`, 'ok');
-    else if (r.saved) flash(`<div class="big">🔥</div><div>The Phoenix rises!</div><div class="cardname">${esc(C[r.card].name)} is saved</div>`, 'fail');
-    else flash(`<div class="big">🛡️</div><div>A Shield!</div><div class="cardname">${esc(raider)}${r.raider === v.you ? 'r' : "'s"} raid fails</div>`, 'fail');
+    if (r.ok) flash(`<div class="flash-ico">${R.icon(r.card)}</div><div>${esc(raider)} seized ${esc(dfd)}</div><div class="cardname">${esc(C[r.card].name)}</div>`, 'ok');
+    else if (r.saved) flash(`<div class="flash-ico">${R.icon('phoenixEmber')}</div><div>The Phoenix rises!</div><div class="cardname">${esc(C[r.card].name)} is saved</div>`, 'fail');
+    else flash(`<div class="flash-ico">${R.icon('aegis')}</div><div>A Shield!</div><div class="cardname">${esc(raider)}${r.raider === v.you ? 'r' : "'s"} raid fails</div>`, 'fail');
   }
 
   // ---------- dialogs ----------
@@ -421,7 +479,7 @@
       const raw = JSON.stringify(o.v), arg = esc(raw);
       if (o.card) return card(o.card, { act: 'choose', arg: raw, cls: 'pick' });
       if (o.label) return btn(esc(o.label), `data-act="choose" data-arg="${arg}"`, 'ghost');
-      return `<button class="card back pick" data-act="choose" data-arg="${arg}"><span class="back-art">${R.laurel(-1, { w: 40, h: 60, leaves: 5, fill: '#d9b866', stroke: '#d9b866' })}${R.laurel(1, { w: 40, h: 60, leaves: 5, fill: '#d9b866', stroke: '#d9b866' })}</span></button>`;
+      return cardBack('pick', `data-act="choose" data-arg="${arg}"`);
     }).join('');
     return modal(`<h2>${blind ? 'Choose Blindly' : 'Your Choice'}</h2><p class="prompt">${esc(pd.prompt)}</p><div class="choice-row ${blind ? 'blind' : ''}">${opts}</div>`, 'wide');
   }
@@ -444,16 +502,16 @@
     if (d.raid) return opps.flatMap(i => R.CATS.map(cat => {
       const e = shieldsFor(v, key, i, cat);
       if (!e.n) return null;
-      return { label: `<b>${nm(i)}</b> · ${R.CAT_ICON[cat]} ${R.CAT_NAME[cat]} <small>${e.n} card${e.n > 1 ? 's' : ''} vs ${e.s} Shield${e.s > 1 ? 's' : ''} · ${e.pct}% to steal</small>`, target: { player: i, cat } };
+      return { label: `<b>${nm(i)}</b> · ${R.icon(cat, 'inline')} ${R.CAT_NAME[cat]} <small>${e.n} card${e.n > 1 ? 's' : ''} vs ${e.s} Shield${e.s > 1 ? 's' : ''} · ${e.pct}% to steal</small>`, target: { player: i, cat } };
     }).filter(Boolean));
     if (key === 'aphrodite') return opps.flatMap(i => v.players[i].table.filter(c => C[c.key].pts === 1)
-      .map(c => ({ label: `<b>${nm(i)}</b> · ${R.CAT_ICON[C[c.key].cat]} ${esc(C[c.key].name)}`, target: { card: c.id } })));
+      .map(c => ({ label: `<b>${nm(i)}</b> · ${R.icon(C[c.key].cat, 'inline')} ${esc(C[c.key].name)}`, target: { card: c.id } })));
     if (key === 'zeus') return v.players.flatMap((p, i) => p.table.filter(c => C[c.key].pts <= 2)
-      .map(c => ({ label: `<b>${i === me ? 'Your own' : nm(i)}</b> · ${R.CAT_ICON[C[c.key].cat]} ${esc(C[c.key].name)} <small>${C[c.key].pts} pt</small>`, target: { card: c.id } })));
+      .map(c => ({ label: `<b>${i === me ? 'Your own' : nm(i)}</b> · ${R.icon(C[c.key].cat, 'inline')} ${esc(C[c.key].name)} <small>${C[c.key].pts} pt</small>`, target: { card: c.id } })));
     if (key === 'hermes') return opps.filter(i => v.players[i].handCount > 0)
       .map(i => ({ label: `<b>${nm(i)}</b> <small>${v.players[i].handCount} cards in hand</small>`, target: { player: i } }));
     if (key === 'hera') return opps.filter(i => v.players[i].blessing)
-      .map(i => ({ label: `<b>${nm(i)}</b> · ${C[v.players[i].blessing].glyph} ${esc(C[v.players[i].blessing].name)}`, target: { player: i } }));
+      .map(i => ({ label: `<b>${nm(i)}</b> · ${R.icon(v.players[i].blessing, 'inline')} ${esc(C[v.players[i].blessing].name)}`, target: { player: i } }));
     return [{ label: 'Play this card', target: {} }];
   }
 
@@ -478,8 +536,8 @@
     if (!reqOk) body = `<p class="warn">You need at least ${d.pts - 1} ${R.CAT_NAME[d.cat]} point${d.pts > 2 ? 's' : ''} before you can buy this.</p>`;
     else if (!plan) body = `<p class="warn">You don't have the resources. It costs ${esc(R.costText(d))}${disc ? ` (${disc} cheaper for you)` : ''}.</p>`;
     else {
-      const pay = plan.map(id => { const k = me.hand.find(h => h.id === id).key; return `${C[k].glyph} ${C[k].name}`; });
-      body = `<p>You will pay:</p><div class="pay">${pay.map(p => `<span class="pay-card">${esc(p)}</span>`).join('') || '<span class="pay-card">Nothing!</span>'}</div>
+      const pay = plan.map(id => { const k = me.hand.find(h => h.id === id).key; return `${R.icon(k, 'inline')} ${esc(C[k].name)}`; });
+      body = `<p>You will pay:</p><div class="pay">${pay.map(p => `<span class="pay-card">${p}</span>`).join('') || '<span class="pay-card">Nothing!</span>'}</div>
         ${d.type === 'blessing' && me.blessing ? `<p class="hint">You already hold ${esc(C[me.blessing].name)}; you'll choose which one to keep.</p>` : ''}`;
     }
     return modal(`<div class="modal-split"><div>${card(c.key, { cls: 'big', act: 'none' })}</div>
@@ -495,7 +553,7 @@
     return modal(`<h2>🔁 Trade 2 Cards for 1 Resource</h2>
       <p class="prompt">Pick 2 cards to discard, then the resource card you want in your hand.</p>
       <div class="choice-row trade-hand">${hand.map(c => card(c.key, { act: 'tradePick', arg: c.id, cls: 'pick' + (m.sel.includes(c.id) ? ' selected' : '') })).join('')}</div>
-      <div class="opt-row res-row"><span>Resource</span>${R.RES.map(r => `<button class="pill ${m.res === r ? 'on' : ''}" data-act="tradeRes" data-arg="${r}">${R.RES_ICON[r]} ${R.RES_NAME[r]}</button>`).join('')}</div>
+      <div class="opt-row res-row"><span>Resource</span>${R.RES.map(r => `<button class="pill ${m.res === r ? 'on' : ''}" data-act="tradeRes" data-arg="${r}">${resToken(r)} ${R.RES_NAME[r]}</button>`).join('')}</div>
       ${hidden ? '<p class="warn">Careful: you are discarding a hidden point card.</p>' : ''}
       <div class="stack row">${btn(`Trade (${m.sel.length}/2)`, `data-act="tradeDo" ${ready ? '' : 'disabled'}`, 'primary')}${btn('Cancel', 'data-act="close"', 'ghost')}</div>`, 'wide');
   }
@@ -513,7 +571,7 @@
     const rows = v.players.map((p, i) => `<tr class="${i === v.winner ? 'win' : ''}"><td>${esc(p.name)}</td>${R.CATS.map(c => `<td>${p.points[c]}</td>`).join('')}</tr>`).join('');
     return modal(`<div class="victory">${R.laurel(-1, { w: 80, h: 120 })}<div><div class="big">🏆</div>
       <h2>${v.winner === v.you ? 'Victory is yours!' : esc(w.name) + ' wins!'}</h2><p>The gods have chosen their champion.</p></div>${R.laurel(1, { w: 80, h: 120 })}</div>
-      <table class="final"><tr><th></th>${R.CATS.map(c => `<th>${R.CAT_ICON[c]}</th>`).join('')}</tr>${rows}</table>
+      <table class="final"><tr><th></th>${R.CATS.map(c => `<th>${R.icon(c, 'inline')}</th>`).join('')}</tr>${rows}</table>
       <div class="stack">${btn('Return to Menu', 'data-act="leave"', 'big')}</div>`, 'win');
   }
 
@@ -553,12 +611,21 @@
       el.textContent = s + 's';
     });
     const v = ui.view;
+    if (!v || ui.screen !== 'game') return;
+    const left = v.clockPaused ? v.phaseRemaining : ui.turnDeadlineAt - Date.now();
+    const s = Math.max(0, Math.ceil(left / 1000));
+    const total = v.phase === 'draw' ? 10000 : 60000;
     document.querySelectorAll('[data-turn-clock]').forEach(el => {
-      const left = v && v.clockPaused ? v.phaseRemaining : ui.turnDeadlineAt - Date.now();
-      const s = Math.max(0, Math.ceil(left / 1000));
-      el.textContent = (v && v.clockPaused ? '⏸ ' : '⏳ ') + (s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : s + 's');
+      el.textContent = (v.clockPaused ? '⏸ ' : '') + (s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : s + 's');
       el.classList.toggle('low', s <= 10);
     });
+    document.querySelectorAll('[data-turn-ring]').forEach(el => {
+      el.style.setProperty('--p', Math.max(0, Math.min(100, (left / total) * 100)) + '%');
+      el.classList.toggle('low', s <= 10);
+    });
+    // Tick through the last five seconds of your own turn.
+    if (v.turn === v.you && v.winner == null && !v.clockPaused && s <= 5 && s > 0 && s !== ui.lastTick) R.sfx.play('tick');
+    ui.lastTick = s;
   }
   setInterval(tick, 250);
 
@@ -603,6 +670,8 @@
       reset(); menu();
     },
     motion(on) { store.set('motion', on === '1'); applyMotion(); settings(); },
+    sound(on) { R.sfx.set({ on: on === '1' }); settings(); },
+    soundToggle() { R.sfx.set({ on: !R.sfx.on }); if (ui.view) renderGame(); },
     saveSettings() { readName(); toast('Settings saved.'); menu(); },
     rulesModal() { openModal({ type: 'rules' }); },
     close() { ui.modal = null; renderOverlay(); },
@@ -651,6 +720,7 @@
   document.addEventListener('click', e => {
     const el = e.target.closest('[data-go],[data-act]');
     if (!el || el.disabled) return;
+    if (el.matches('button')) R.sfx.play('click');
     if (el.dataset.go) { ui.modal = null; go(el.dataset.go); return; }
     const fn = ACTS[el.dataset.act];
     if (fn) fn(el.dataset.arg, el);
