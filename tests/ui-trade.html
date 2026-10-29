@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>trade dialog check</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <!-- Open as ui-trade.html?demo: waits for your turn, opens the trade dialog and picks 2 cards + Silver. -->
+  <div id="scene"></div><div id="app"></div><div id="overlay"></div><div id="toasts"></div>
+  <script src="../js/cards.js"></script>
+  <script src="../js/engine.js"></script>
+  <script src="../js/bot.js"></script>
+  <script src="../js/net.js"></script>
+  <script src="../js/scene.js"></script>
+  <script src="../js/ui.js"></script>
+  <script>
+    const iv = setInterval(() => {
+      const b = document.querySelector('[data-act="tradeOpen"]:not([disabled])');
+      if (!b) return;
+      clearInterval(iv);
+      document.body.classList.add('no-motion');
+      b.click();
+      const cards = document.querySelectorAll('[data-act="tradePick"]');
+      cards[0].click();
+      document.querySelectorAll('[data-act="tradePick"]')[1].click();
+      document.querySelector('[data-act="tradeRes"][data-arg="silver"]').click();
+    }, 200);
+  </script>
+</body>
+</html>

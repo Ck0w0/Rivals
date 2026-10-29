@@ -1,0 +1,49 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>net test</title></head>
+<body><pre id="out">running…</pre>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="../js/cards.js"></script>
+<script src="../js/engine.js"></script>
+<script src="../js/bot.js"></script>
+<script src="../js/net.js"></script>
+<script>
+  // A host and a guest in one page, talking over the real PeerJS network. The guest just ends turns and passes.
+  const R = window.ROO, log = [];
+  const out = t => { log.push(t); document.getElementById('out').textContent = log.join('\n'); };
+  let client = null, guestViews = 0, guestTurns = 0, leaked = false, started = false;
+  const host = new R.Host('Host', {
+    onLobby: l => {
+      if (l.ready && !client) {
+        out('host online with code ' + l.code);
+        client = new R.Client(l.code, 'Guest', {
+          onLobby: gl => out('guest sees lobby: ' + gl.seats.map(s => s.name).join(', ')),
+          onView: v => {
+            guestViews++;
+            if (v.players.some((p, i) => i !== v.you && p.hand)) leaked = true;
+            const pd = v.pending;
+            if (pd && pd.kind === 'window' && pd.waiting.includes(v.you)) client.command({ type: 'react', card: null });
+            else if (pd && pd.kind === 'choice' && pd.player === v.you) client.command({ type: 'choose', v: pd.options[0].v });
+            else if (!pd && v.turn === v.you && v.winner == null) { guestTurns++; client.command({ type: 'end' }); }
+          },
+          onError: t => out('guest error: ' + t),
+          onClosed: t => out('guest closed: ' + t),
+        });
+      }
+      if (l.seats.length === 2 && !started) {
+        started = true;
+        host.seats[0].bot = true; // let a bot play the host seat so the game runs on its own
+        host.start();
+        host.game.players[0].bot = true;
+        host.update();
+      }
+    },
+    onView: () => {},
+    onError: t => out('host error: ' + t),
+  });
+  host.goOnline();
+  setTimeout(() => {
+    out(`RESULT guestViews=${guestViews} guestTurns=${guestTurns} handLeak=${leaked} hostTurn=${host.game && host.game.turnNo}`);
+    document.title = 'done';
+  }, 25000);
+</script>
+</body></html>

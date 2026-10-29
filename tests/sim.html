@@ -1,0 +1,38 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Rivals of Olympus self-test</title></head>
+<body><pre id="out">running…</pre>
+<script src="../js/cards.js"></script>
+<script src="../js/engine.js"></script>
+<script src="../js/bot.js"></script>
+<script>
+  // Plays bot-only games synchronously and checks that no card is ever lost or duplicated.
+  const R = window.ROO, out = [];
+  let wins = 0, stalls = 0, turns = 0, errors = 0;
+  const counts = {};
+  for (let g = 0; g < 400; g++) {
+    const n = 2 + (g % 4);
+    const game = new R.Game(Array.from({ length: n }, (_, i) => ({ name: 'B' + i, bot: true })), { target: n === 2 ? 5 : 6, heroes: g % 2 === 0 });
+    try {
+      let steps = 0;
+      while (game.winner == null && steps++ < 20000) {
+        const pd = game.pending;
+        const actor = pd ? (pd.kind === 'window' ? pd.waiting[0] : pd.player) : game.turn;
+        let cmd = R.botAct(game, actor);
+        // Bots never choose these, so exercise them here.
+        const odd = !pd && game.actionsLeft > 0 && game.players[actor].hand.find(id => ['apollo', 'dionysus'].includes(game.cards[id]));
+        if (odd && Math.random() < 0.7) cmd = { type: 'play', card: odd };
+        if (cmd && cmd.type === 'play') counts[game.cards[cmd.card]] = (counts[game.cards[cmd.card]] || 0) + 1;
+        if (cmd && cmd.type === 'trade') counts.trade = (counts.trade || 0) + 1;
+        const err = game.command(actor, cmd);
+        if (err) { errors++; if (errors < 10) out.push('bot error: ' + err + ' ' + JSON.stringify(cmd)); game.command(actor, R.botFallback(game, actor)); }
+        game.audit();
+        JSON.stringify(game.view(actor));
+      }
+      if (game.winner != null) { wins++; turns += game.turnNo; } else stalls++;
+    } catch (e) { out.push(`game ${g}: ${e.stack}`); break; }
+  }
+  out.unshift(`games won: ${wins}, stalled: ${stalls}, bot errors: ${errors}, avg turns to win: ${(turns / Math.max(1, wins)).toFixed(1)}`);
+  out.push('actions played: ' + JSON.stringify(counts));
+  document.getElementById('out').textContent = out.join('\n');
+</script>
+</body></html>
