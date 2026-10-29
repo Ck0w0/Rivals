@@ -146,18 +146,6 @@ window.ROO = window.ROO || {};
     return short > 0 ? null : ids;
   };
 
-  // Traded resources (2 cards → 1 resource) as pseudo-cards that R.payPlan understands.
-  // They go last so payPlan spends them before real cards, since they expire at the end of the turn.
-  R.tokenCards = function (tokens) {
-    const out = [];
-    R.RES.forEach(r => {
-      const n = (tokens && tokens[r]) || 0;
-      for (let k = 0; k < n; k++) out.push({ id: `tok:${r}:${k}`, key: r, token: true });
-    });
-    return out;
-  };
-  R.isToken = id => typeof id === 'string' && id.startsWith('tok:');
-
   R.costText = function (d) {
     if (d.anyCost) return `Any ${d.anyCost} resources`;
     if (!d.cost) return '';

@@ -138,10 +138,12 @@
     return `<div class="rules">
       <p><b>Goal.</b> Be the first to reach the target (usually 6) in all three categories: <b>⛵ Fleet</b>, <b>🏛️ Polis</b> and <b>💰 Treasure</b>. Face-up point cards count, plus hidden point cards in your hand.</p>
       <h3>Your turn</h3>
-      <ol><li><b>Draw</b> 2 cards (automatic).</li><li><b>Act:</b> play 1 action card from your hand (click it).</li><li><b>Buy:</b> buy 1 card from the Agora (click it). Resources are paid automatically.</li><li>Press <b>End Turn</b>.</li></ol>
+      <ol><li><b>Draw</b> 2 cards (press Draw within 10 seconds).</li><li><b>Act:</b> play 1 action card from your hand (click it).</li><li><b>Buy:</b> buy 1 card from the Agora (click it). Resources are paid automatically.</li><li>Press <b>End Turn</b>.</li></ol>
       <p>You may act and buy in either order. There is no hand limit.</p>
       <h3>Trading</h3>
-      <p>On your turn, as often as you like, you may discard any 2 cards from your hand to gain 1 resource of your choice (press <b>🔁 Trade</b>). A traded resource can be spent like a resource card, but it disappears at the end of your turn.</p>
+      <p>On your turn, as often as you like, you may discard any 2 cards from your hand to take 1 resource card of your choice into your hand (press <b>🔁 Trade</b>). It comes from the Oracle discard pile, or from the deck if none are discarded.</p>
+      <h3>Turn timer</h3>
+      <p>At the start of your turn press <b>Draw</b>; after 10 seconds you draw automatically. You then have 1 minute to act, buy and trade; when it runs out your turn ends. The clock pauses while other players decide on reactions.</p>
       <h3>Buying</h3>
       <p>A 2-point card needs at least 1 point in its category already; a 3-point card needs 2. Blessings cost any 3 resources and give a permanent power. You may hold only one Blessing.</p>
       <h3>Raiding</h3>
@@ -292,20 +294,13 @@
   }
 
   // ---------- game screen ----------
-  const isFree = v => v.turn === v.you && !v.pending && v.winner == null;
-
-  const payHand = me => me.hand.concat(R.tokenCards(me.tokens));
+  const isFree = v => v.turn === v.you && !v.pending && v.winner == null && v.phase === 'main';
+  const mustDraw = v => v.turn === v.you && !v.pending && v.winner == null && v.phase === 'draw';
 
   function canBuy(v, key) {
     const me = v.players[v.you], d = C[key];
     if (!R.reqMet(me.points, d)) return false;
-    return !!R.payPlan(payHand(me), d, R.discountFor({ hero: me.hero, blessing: me.blessing }, d));
-  }
-
-  function tokenChips(me) {
-    const chips = R.RES.filter(r => me.tokens && me.tokens[r] > 0)
-      .map(r => `<span class="token" title="Traded resource: spend it this turn">${R.RES_ICON[r]} ${R.RES_NAME[r]}${me.tokens[r] > 1 ? ' ×' + me.tokens[r] : ''}</span>`);
-    return chips.length ? `<div class="tokens">${chips.join('')}</div>` : '';
+    return !!R.payPlan(me.hand, d, R.discountFor({ hero: me.hero, blessing: me.blessing }, d));
   }
 
   function statusText(v) {
@@ -313,9 +308,13 @@
     const pd = v.pending;
     if (pd && pd.kind === 'window') return pd.react === 'aegis' ? 'Will anyone raise the Aegis?' : `${esc(pname(v, pd.act.target.player))} may form a Shield Wall…`;
     if (pd) return pd.player === v.you ? 'Make your choice.' : `${esc(v.players[pd.player].name)} is choosing…`;
-    if (v.turn === v.you) return 'Your turn: play an action, buy from the Agora, then end your turn.';
-    return `${esc(v.players[v.turn].name)}'s turn`;
+    if (v.turn === v.you) return v.phase === 'draw' ? 'Your turn: draw your cards!' : 'Play an action, buy from the Agora, then end your turn.';
+    return `${esc(v.players[v.turn].name)}'s turn${v.phase === 'draw' ? ' (drawing)' : ''}`;
   }
+
+  // Counts down the current phase; it reads "paused" while a reaction window is open.
+  const turnClock = v => v.winner == null
+    ? `<span class="turn-clock ${v.clockPaused ? 'paused' : ''}" data-turn-clock="1" title="${v.phase === 'draw' ? 'Time left to draw' : 'Time left this turn'}"></span>` : '';
 
   function renderGame() {
     const v = ui.view, me = v.players[v.you], n = v.players.length, free = isFree(v);
@@ -328,7 +327,7 @@
     setScreen('game', `<div class="game">
       <header class="topbar">
         <div class="brand">Rivals <i>of</i> Olympus</div>
-        <div class="status ${free ? 'mine' : ''}">${statusText(v)}</div>
+        <div class="status ${free || mustDraw(v) ? 'mine' : ''}">${statusText(v)} ${turnClock(v)}</div>
         <div class="top-actions"><span class="tgt">Target ${v.target} · Round ${Math.ceil(v.turnNo / n)}</span>
           <button class="gbtn small" data-act="rulesModal">Rules</button><button class="gbtn small ghost" data-act="leave">Leave</button></div>
       </header>
@@ -345,12 +344,13 @@
       <section class="me panel ${myTurn ? 'active' : ''}">
         <div class="me-info"><div class="opp-name">${esc(me.name)} <em>(you)</em></div>${badges(me)}${scoreRow(me)}</div>
         <div class="me-table">${tableau(me)}</div>
-        <div class="turn-ctrl">${myTurn
-          ? `<div class="pips"><span class="pip ${v.actionsLeft ? 'on' : ''}">⚡ Action ${v.actionsLeft}</span><span class="pip ${v.buysLeft ? 'on' : ''}">🏛 Buy ${v.buysLeft}</span></div>
-             ${tokenChips(me)}
-             ${btn('🔁 Trade 2 → 1', `data-act="tradeOpen" ${free && me.hand.length >= 2 ? '' : 'disabled'} title="Discard 2 cards for 1 resource of your choice (this turn only)"`, 'small')}
-             ${btn('End Turn', `data-act="end" ${free ? '' : 'disabled'}`, 'primary')}`
-          : '<div class="hint">Waiting for your turn…</div>'}</div>
+        <div class="turn-ctrl">${!myTurn ? '<div class="hint">Waiting for your turn…</div>'
+          : v.phase === 'draw'
+          ? `<div class="hint">Draw ${me.blessing === 'oraclesSight' ? 3 : 2} cards. They are drawn for you when the timer runs out.</div>
+             ${btn(`🂠 Draw ${me.blessing === 'oraclesSight' ? 3 : 2}`, `data-act="draw" ${mustDraw(v) ? '' : 'disabled'}`, 'primary draw-btn')}`
+          : `<div class="pips"><span class="pip ${v.actionsLeft ? 'on' : ''}">⚡ Action ${v.actionsLeft}</span><span class="pip ${v.buysLeft ? 'on' : ''}">🏛 Buy ${v.buysLeft}</span></div>
+             ${btn('🔁 Trade 2 → 1', `data-act="tradeOpen" ${free && me.hand.length >= 2 ? '' : 'disabled'} title="Discard 2 cards to take 1 resource card of your choice"`, 'small')}
+             ${btn('End Turn', `data-act="end" ${free ? '' : 'disabled'}`, 'primary')}`}</div>
       </section>
       <section class="hand-wrap"><div class="hand">${hand.map(c => card(c.key, { id: c.id, zone: 'hand',
         cls: (free && v.actionsLeft && C[c.key].type === 'action' ? 'playable ' : '') + (C[c.key].type === 'hidden' ? 'secret' : '') })).join('') || '<span class="hint">Your hand is empty.</span>'}</div></section>
@@ -365,6 +365,7 @@
   function onView(v) {
     const pd = v.pending;
     if (pd && pd.kind === 'window') ui.deadlineAt = Date.now() + pd.remaining;
+    ui.turnDeadlineAt = Date.now() + (v.phaseRemaining || 0);
     const first = !ui.view;
     ui.view = v;
     // Drop local dialogs that no longer make sense.
@@ -472,12 +473,12 @@
     const c = v.market.find(x => x && x.id === ui.modal.id), d = C[c.key], me = v.players[v.you];
     const reqOk = R.reqMet(me.points, d);
     const disc = R.discountFor({ hero: me.hero, blessing: me.blessing }, d);
-    const plan = R.payPlan(payHand(me), d, disc);
+    const plan = R.payPlan(me.hand, d, disc);
     let body;
     if (!reqOk) body = `<p class="warn">You need at least ${d.pts - 1} ${R.CAT_NAME[d.cat]} point${d.pts > 2 ? 's' : ''} before you can buy this.</p>`;
     else if (!plan) body = `<p class="warn">You don't have the resources. It costs ${esc(R.costText(d))}${disc ? ` (${disc} cheaper for you)` : ''}.</p>`;
     else {
-      const pay = plan.map(id => R.isToken(id) ? `${R.RES_ICON[id.split(':')[1]]} Traded ${R.RES_NAME[id.split(':')[1]]}` : `${C[me.hand.find(h => h.id === id).key].glyph} ${C[me.hand.find(h => h.id === id).key].name}`);
+      const pay = plan.map(id => { const k = me.hand.find(h => h.id === id).key; return `${C[k].glyph} ${C[k].name}`; });
       body = `<p>You will pay:</p><div class="pay">${pay.map(p => `<span class="pay-card">${esc(p)}</span>`).join('') || '<span class="pay-card">Nothing!</span>'}</div>
         ${d.type === 'blessing' && me.blessing ? `<p class="hint">You already hold ${esc(C[me.blessing].name)}; you'll choose which one to keep.</p>` : ''}`;
     }
@@ -492,7 +493,7 @@
     const ready = m.sel.length === 2 && m.res;
     const hidden = m.sel.some(id => C[me.hand.find(c => c.id === id).key].type === 'hidden');
     return modal(`<h2>🔁 Trade 2 Cards for 1 Resource</h2>
-      <p class="prompt">Pick 2 cards to discard, then the resource you want. It lasts until the end of this turn.</p>
+      <p class="prompt">Pick 2 cards to discard, then the resource card you want in your hand.</p>
       <div class="choice-row trade-hand">${hand.map(c => card(c.key, { act: 'tradePick', arg: c.id, cls: 'pick' + (m.sel.includes(c.id) ? ' selected' : '') })).join('')}</div>
       <div class="opt-row res-row"><span>Resource</span>${R.RES.map(r => `<button class="pill ${m.res === r ? 'on' : ''}" data-act="tradeRes" data-arg="${r}">${R.RES_ICON[r]} ${R.RES_NAME[r]}</button>`).join('')}</div>
       ${hidden ? '<p class="warn">Careful: you are discarding a hidden point card.</p>' : ''}
@@ -551,6 +552,13 @@
       const s = Math.max(0, Math.ceil((ui.deadlineAt - Date.now()) / 1000));
       el.textContent = s + 's';
     });
+    const v = ui.view;
+    document.querySelectorAll('[data-turn-clock]').forEach(el => {
+      const left = v && v.clockPaused ? v.phaseRemaining : ui.turnDeadlineAt - Date.now();
+      const s = Math.max(0, Math.ceil(left / 1000));
+      el.textContent = (v && v.clockPaused ? '⏸ ' : '⏳ ') + (s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : s + 's');
+      el.classList.toggle('low', s <= 10);
+    });
   }
   setInterval(tick, 250);
 
@@ -599,6 +607,7 @@
     rulesModal() { openModal({ type: 'rules' }); },
     close() { ui.modal = null; renderOverlay(); },
     end(_, el) { el.disabled = true; send({ type: 'end' }); },
+    draw(_, el) { el.disabled = true; send({ type: 'draw' }); },
     handCard(id) {
       const v = ui.view, c = v.players[v.you].hand.find(x => x.id === +id);
       if (!c) return;

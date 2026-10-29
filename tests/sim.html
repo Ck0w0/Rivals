@@ -19,7 +19,7 @@
         const actor = pd ? (pd.kind === 'window' ? pd.waiting[0] : pd.player) : game.turn;
         let cmd = R.botAct(game, actor);
         // Bots never choose these, so exercise them here.
-        const odd = !pd && game.actionsLeft > 0 && game.players[actor].hand.find(id => ['apollo', 'dionysus'].includes(game.cards[id]));
+        const odd = !pd && game.phase === 'main' && game.actionsLeft > 0 && game.players[actor].hand.find(id => ['apollo', 'dionysus'].includes(game.cards[id]));
         if (odd && Math.random() < 0.7) cmd = { type: 'play', card: odd };
         if (cmd && cmd.type === 'play') counts[game.cards[cmd.card]] = (counts[game.cards[cmd.card]] || 0) + 1;
         if (cmd && cmd.type === 'trade') counts.trade = (counts.trade || 0) + 1;

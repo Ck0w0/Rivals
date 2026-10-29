@@ -27,7 +27,7 @@
       if (id == null) return;
       const d = g.def(id);
       if (!ignoreReq && !R.reqMet(g.points(i), d)) return;
-      if (!R.payPlan(g.payHand(i), d, R.discountFor(g.who(i), d) + extraDiscount)) return;
+      if (!R.payPlan(g.handCards(i), d, R.discountFor(g.who(i), d) + extraDiscount)) return;
       const s = buyScore(g, i, id) + Math.random() * 0.3;
       if (s > 0 && (!best || s > best.s)) best = { id, s };
     });
@@ -43,9 +43,8 @@
     for (let a = 0; a < junk.length; a++) for (let b = a + 1; b < junk.length; b++) {
       const rest = hand.filter(c => c !== junk[a] && c !== junk[b]);
       R.RES.forEach(res => {
-        const tokens = Object.assign({}, g.players[i].tokens);
-        tokens[res] = (tokens[res] || 0) + 1;
-        const pay = rest.concat(R.tokenCards(tokens));
+        if (!g.oracleDiscard.concat(g.oracle).some(id => g.cards[id] === res)) return;
+        const pay = rest.concat([{ id: 'traded', key: res }]);
         g.market.forEach(id => {
           if (id == null) return;
           const d = g.def(id);
@@ -137,6 +136,7 @@
     }
     if (pd) return pd.player === i ? { type: 'choose', v: choose(g, i, pd) } : null;
     if (g.turn !== i) return null;
+    if (g.phase === 'draw') return { type: 'draw' };
     if (g.actionsLeft > 0) { const a = pickAction(g, i); if (a) return a; }
     if (g.buysLeft > 0) {
       const b = bestBuy(g, i, g.market, 0, false);
@@ -152,6 +152,6 @@
     const pd = g.pending;
     if (pd && pd.kind === 'window') return { type: 'react', card: null };
     if (pd) return { type: 'choose', v: pd.options[0].v };
-    return { type: 'end' };
+    return { type: g.phase === 'draw' ? 'draw' : 'end' };
   };
 })(window.ROO);

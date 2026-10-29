@@ -2,6 +2,8 @@
 (function (R) {
   const C = R.CARDS;
   const WINDOW_MS = 15000;
+  const DRAW_MS = 10000;
+  const MAIN_MS = 60000;
 
   function shuffle(a) {
     for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
@@ -26,7 +28,7 @@
       this.agora = shuffle(agora); this.agoraDiscard = [];
       const heroKeys = shuffle(Object.keys(R.HEROES));
       this.players = seats.map((s, i) => ({
-        name: s.name, bot: !!s.bot, connected: true, hand: [], table: [], blessing: null, tokens: {},
+        name: s.name, bot: !!s.bot, connected: true, hand: [], table: [], blessing: null,
         hero: this.opts.heroes ? heroKeys[i % heroKeys.length] : null,
       }));
       this.log = []; this.logSeq = 0; this.revealSeq = 0; this.seq = 0;
@@ -58,9 +60,7 @@
     has(i, key) { return this.players[i].hand.some(id => this.cards[id] === key); }
     findInHand(i, key) { return this.players[i].hand.find(id => this.cards[id] === key); }
     blessingKey(i) { const b = this.players[i].blessing; return b ? this.cards[b] : null; }
-    handCards(i) { return this.players[i].hand.map(id => ({ id, key: this.cards[id] })); }
-    payHand(i) { return this.handCards(i).concat(R.tokenCards(this.players[i].tokens)); }
-    who(i) { return { hero: this.players[i].hero, blessing: this.blessingKey(i) }; }
+    handCards(i) { return this.players[i].hand.map(id => ({ id, key: this.cards[id] })); }    who(i) { return { hero: this.players[i].hero, blessing: this.blessingKey(i) }; }
     ownerOf(id) { return this.players.findIndex(p => p.table.includes(id)); }
     removeFrom(arr, id) { const k = arr.indexOf(id); if (k >= 0) arr.splice(k, 1); return k >= 0; }
     catCards(i, cat) { return this.players[i].table.filter(id => this.def(id).cat === cat); }
@@ -112,18 +112,32 @@
     }
 
     // ---------- turn flow ----------
+    // A turn has two timed phases: 'draw' (press Draw, or it happens automatically) and 'main' (act, buy, trade).
+    // The host enforces the deadlines; the engine just records them.
     startTurn() {
-      const i = this.turn, p = this.players[i];
+      const p = this.players[this.turn];
       this.actionsLeft = 1; this.buysLeft = 1;
+      this.phase = 'draw';
+      this.phaseDeadline = Date.now() + DRAW_MS;
       this.say(`— ${p.name}'s turn —`);
+    }
+
+    drawPhase(i) {
+      const p = this.players[i];
+      this.phase = 'main';
+      this.phaseDeadline = Date.now() + MAIN_MS;
       if (this.blessingKey(i) === 'oraclesSight') {
         this.draw(i, 3);
         this.choice(i, "Oracle's Sight: choose a card to discard.", p.hand.map(id => ({ v: id, card: this.cards[id] })), { type: 'sight' });
       } else this.draw(i, 2);
     }
 
+    // Reaction windows pause the turn clock, so other players deciding doesn't eat into your minute.
+    windowClosed(pd) {
+      if (this.phase === 'main' && pd.opened) this.phaseDeadline += Date.now() - pd.opened;
+    }
+
     endTurn() {
-      this.players[this.turn].tokens = {};
       if (this.loomShuffle) {
         this.oracle = shuffle(this.oracle.concat(this.oracleDiscard)); this.oracleDiscard = []; this.loomShuffle = false;
         this.say('🧵 The Loom of the Fates turns: the Oracle discards are shuffled back into the deck.');
@@ -155,6 +169,8 @@
       }
       if (pd) return pd.kind === 'window' ? 'Waiting for reactions.' : `Waiting for ${this.name(pd.player)}.`;
       if (i !== this.turn) return 'It is not your turn.';
+      if (this.phase === 'draw') return cmd.type === 'draw' ? this.drawPhase(i) : 'Draw your cards first.';
+      if (cmd.type === 'draw') return 'You have already drawn this turn.';
       if (cmd.type === 'play') return this.play(i, cmd.card, cmd.target || {});
       if (cmd.type === 'buy') {
         if (this.buysLeft < 1) return 'You have no buys left this turn.';
@@ -165,13 +181,23 @@
       return 'Unknown command.';
     }
 
-    // House rule: discard any 2 cards from hand for 1 resource of your choice, usable until the end of this turn.
+    // House rule: discard any 2 cards from hand to take 1 resource card of your choice.
+    // The card comes from the Oracle discard pile, or failing that from the Oracle deck (which is then reshuffled).
     trade(i, cards, res) {
       const p = this.players[i];
       if (!Array.isArray(cards) || cards.length !== 2 || cards[0] === cards[1] || !cards.every(id => p.hand.includes(id))) return 'Choose 2 different cards from your hand.';
       if (!R.RES.includes(res)) return 'Choose a resource.';
+      const isRes = id => this.cards[id] === res;
+      let got = this.oracleDiscard.find(isRes);
+      if (got != null) this.removeFrom(this.oracleDiscard, got);
+      else {
+        got = this.oracle.find(isRes);
+        if (got == null) return `There are no ${R.RES_NAME[res]} cards left to take. Every one is in someone's hand.`;
+        this.removeFrom(this.oracle, got);
+        shuffle(this.oracle);
+      }
       cards.forEach(id => { this.removeFrom(p.hand, id); this.oracleDiscard.push(id); });
-      p.tokens[res] = (p.tokens[res] || 0) + 1;
+      p.hand.push(got);
       this.say(`🔁 ${p.name} trades 2 cards for 1 ${R.RES_NAME[res]}.`);
     }
 
@@ -247,7 +273,7 @@
       const standing = count % 2 === 0;
       const waiting = this.players.map((_, j) => j).filter(j => j !== lastBy && !(standing && j === act.player) && this.has(j, 'aegis'));
       if (!waiting.length) return this.afterAegis(act, count);
-      this.pending = { kind: 'window', react: 'aegis', act, count, waiting, deadline: Date.now() + WINDOW_MS };
+      this.pending = { kind: 'window', react: 'aegis', act, count, waiting, opened: Date.now(), deadline: Date.now() + WINDOW_MS };
     }
 
     react(i, cardId) {
@@ -261,6 +287,7 @@
       if (!p.hand.includes(cardId) || this.cards[cardId] !== pd.react) return 'You cannot play that card now.';
       this.removeFrom(p.hand, cardId); this.oracleDiscard.push(cardId);
       this.pending = null;
+      this.windowClosed(pd);
       if (pd.react === 'aegis') {
         this.say(`🛡️ ${p.name} raises the Aegis${pd.count % 2 ? ' and restores the action' : ' to cancel it'}!`);
         this.openAegis(pd.act, pd.count + 1, i);
@@ -274,6 +301,7 @@
     closeWindow() {
       const pd = this.pending;
       this.pending = null;
+      this.windowClosed(pd);
       if (pd.react === 'aegis') this.afterAegis(pd.act, pd.count);
       else this.raidReveal(pd.act);
     }
@@ -283,7 +311,7 @@
       if (C[act.key].raid) {
         const dfd = act.target.player;
         if (this.has(dfd, 'shieldWall')) {
-          this.pending = { kind: 'window', react: 'shieldWall', act, waiting: [dfd], deadline: Date.now() + WINDOW_MS };
+          this.pending = { kind: 'window', react: 'shieldWall', act, waiting: [dfd], opened: Date.now(), deadline: Date.now() + WINDOW_MS };
           return;
         }
         return this.raidReveal(act);
@@ -386,7 +414,7 @@
           this.say(`🌾 ${p.name} draws 2 cards and may buy twice this turn.`);
           break;
         case 'hephaestus': {
-          const opts = this.market.filter(id => id != null && R.payPlan(this.payHand(i),this.def(id), R.discountFor(this.who(i), this.def(id)) + 2))
+          const opts = this.market.filter(id => id != null && R.payPlan(this.handCards(i), this.def(id), R.discountFor(this.who(i), this.def(id)) + 2))
             .map(id => ({ v: id, card: this.cards[id] }));
           opts.push({ v: 'skip', label: 'Buy nothing' });
           this.choice(i, "Hephaestus' Forge: buy any Agora card for 2 fewer resources, ignoring requirements.", opts, { type: 'forge' });
@@ -464,13 +492,10 @@
       if (slot < 0) return 'That card is not in the Agora.';
       const p = this.players[i], d = this.def(id);
       if (!forge && !R.reqMet(this.points(i), d)) return `You need at least ${d.pts - 1} ${R.CAT_NAME[d.cat]} point${d.pts > 2 ? 's' : ''} to buy that.`;
-      const plan = R.payPlan(this.payHand(i), d, R.discountFor(this.who(i), d) + (forge ? 2 : 0));
+      const plan = R.payPlan(this.handCards(i), d, R.discountFor(this.who(i), d) + (forge ? 2 : 0));
       if (!plan) return 'You cannot afford that card.';
-      const paid = plan.map(c => (R.isToken(c) ? `traded ${R.RES_NAME[c.split(':')[1]]}` : this.def(c).name));
-      plan.forEach(c => {
-        if (R.isToken(c)) p.tokens[c.split(':')[1]]--;
-        else { this.removeFrom(p.hand, c); this.oracleDiscard.push(c); }
-      });
+      const paid = plan.map(c => this.def(c).name);
+      plan.forEach(c => { this.removeFrom(p.hand, c); this.oracleDiscard.push(c); });
       if (!forge) this.buysLeft--;
       this.market[slot] = null;
       this.say(`${p.name} buys ${d.name}${paid.length ? ' with ' + paid.join(', ') : ' for free'}.`);
@@ -540,12 +565,15 @@
       return {
         you: me, seq: this.seq, target: this.opts.target, heroes: this.opts.heroes,
         turn: this.turn, turnNo: this.turnNo, actionsLeft: this.actionsLeft, buysLeft: this.buysLeft,
+        // Reaction windows pause the turn clock, so report the time that was left when the window opened.
+        phase: this.phase, clockPaused: !!(pd && pd.kind === 'window'),
+        phaseRemaining: Math.max(0, this.phaseDeadline - (pd && pd.kind === 'window' && this.phase === 'main' ? pd.opened : Date.now())),
         players: this.players.map((p, i) => {
           const open = i === me || over;
           return {
             name: p.name, bot: p.bot, connected: p.connected, hero: p.hero,
             blessing: p.blessing ? this.cards[p.blessing] : null,
-            table: p.table.map(kc), handCount: p.hand.length, tokens: Object.assign({}, p.tokens),
+            table: p.table.map(kc), handCount: p.hand.length,
             hand: open ? p.hand.map(kc) : null,
             points: open ? this.points(i) : this.publicPoints(i),
             needed: this.needed(i),

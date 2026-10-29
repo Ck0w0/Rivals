@@ -124,11 +124,14 @@
 
     // Lets bots (and disconnected players) take their turns, and closes reaction windows on time.
     schedule() {
-      clearTimeout(this.botTimer); clearTimeout(this.windowTimer);
+      clearTimeout(this.botTimer); clearTimeout(this.windowTimer); clearTimeout(this.turnTimer);
       const g = this.game;
       if (!g || g.winner != null) return;
       const auto = i => g.players[i].bot || !g.players[i].connected;
       const pd = g.pending;
+      // While a reaction window is open the turn clock is paused, so just check back later.
+      const wait = pd && pd.kind === 'window' ? 1000 : Math.max(0, g.phaseDeadline - Date.now()) + 50;
+      this.turnTimer = setTimeout(() => this.turnTimeout(), wait);
       let who;
       if (pd && pd.kind === 'window') {
         who = pd.waiting.find(auto);
@@ -143,8 +146,31 @@
       }, pd && pd.kind === 'window' ? 600 : 1100);
     }
 
+    // Draw automatically after the draw timer; end the turn when the action/buy timer runs out.
+    turnTimeout() {
+      const g = this.game;
+      if (!g || g.winner != null) return;
+      if (Date.now() < g.phaseDeadline - 200 || (g.pending && g.pending.kind === 'window')) { this.schedule(); return; }
+      const who = g.turn;
+      if (g.phase === 'draw') {
+        g.say(`⏳ ${g.name(who)} draws automatically.`);
+        g.command(who, { type: 'draw' });
+      } else {
+        // Settle any choice that is still open (e.g. a raid pick) before ending the turn.
+        for (let k = 0; k < 20 && g.pending && g.pending.kind === 'choice'; k++) {
+          const p = g.pending.player;
+          if (g.command(p, R.botAct(g, p))) g.command(p, R.botFallback(g, p));
+        }
+        if (g.winner == null && !g.pending && g.turn === who) {
+          g.say(`⏳ Time is up for ${g.name(who)}.`);
+          g.command(who, { type: 'end' });
+        }
+      }
+      this.update();
+    }
+
     leave() {
-      clearTimeout(this.botTimer); clearTimeout(this.windowTimer);
+      clearTimeout(this.botTimer); clearTimeout(this.windowTimer); clearTimeout(this.turnTimer);
       this.seats.forEach(s => this.send(s.conn, { t: 'closed', text: 'The host has left the game.' }));
       const peer = this.peer;
       if (peer) setTimeout(() => peer.destroy(), 300);

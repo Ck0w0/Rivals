@@ -1,0 +1,28 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>turn timer test</title></head>
+<body><pre id="out">running…</pre>
+<script src="../js/cards.js"></script>
+<script src="../js/engine.js"></script>
+<script src="../js/bot.js"></script>
+<script src="../js/net.js"></script>
+<script>
+  // Two idle human players: the host's timers alone should draw for them and end their turns.
+  // Run with a large --virtual-time-budget so the minutes pass instantly.
+  const R = window.ROO;
+  const host = new R.Host('Idle A', { onLobby() {}, onView() {}, onError() {} });
+  host.seats.push({ name: 'Idle B', conn: null, bot: false });
+  host.start();
+  const startHand = host.game.players[host.game.turn].hand.length;
+  setTimeout(() => {
+    const g = host.game;
+    const log = g.log.map(l => l.text);
+    document.getElementById('out').textContent = [
+      `turns passed: ${g.turnNo - 1}`,
+      `auto draws: ${log.filter(t => t.includes('draws automatically')).length}`,
+      `time-ups: ${log.filter(t => t.includes('Time is up')).length}`,
+      `first player hand: ${startHand} -> ${g.players[0].hand.length + g.players[1].hand.length - startHand} (other)`,
+      `phase now: ${g.phase}`,
+    ].join('\n');
+  }, 5 * 70000 + 5000);
+</script>
+</body></html>
