@@ -482,6 +482,18 @@
   }
   window.addEventListener('resize', fitHand);
 
+  // On phones, the first tap goes full screen and locks the screen sideways where the browser allows it
+  // (Android Chrome does; iPhones ignore it and show the "turn your phone" screen when held upright).
+  if (window.matchMedia('(pointer: coarse)').matches) {
+    const goLandscape = () => {
+      const el = document.documentElement;
+      const fs = el.requestFullscreen ? el.requestFullscreen({ navigationUI: 'hide' }) : null;
+      Promise.resolve(fs).then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape')).catch(() => {});
+    };
+    window.addEventListener('pointerup', goLandscape, { once: true });
+  }
+  window.addEventListener('orientationchange', () => setTimeout(fitHand, 300));
+
   const ORDER = ['action', 'reaction', 'resource', 'hidden', 'event'];
   const order = key => ORDER.indexOf(C[key].type) * 100 + Object.keys(C).indexOf(key);
 

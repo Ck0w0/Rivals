@@ -1,0 +1,10 @@
+{
+  "name": "Rivals of Olympus",
+  "short_name": "Rivals",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0c0705",
+  "theme_color": "#170d07",
+  "icons": []
+}

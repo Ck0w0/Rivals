@@ -14,6 +14,10 @@ Online play is peer-to-peer (WebRTC via PeerJS). The host's browser runs the gam
 
 Everyone needs an internet connection and their own copy of the game. They can either open their own copy of this folder, or you can put the folder on free static hosting (GitHub Pages, Netlify, Cloudflare Pages) and share the link. On hosted copies, **Copy Invite** gives a link that opens the join screen with the code already filled in.
 
+## Phones
+
+The game plays on phones held sideways. Held upright, it asks you to turn the phone. On Android the first tap also goes full screen and locks the screen sideways. On iPhone, use Share › Add to Home Screen to get rid of the browser bars.
+
 ## Custom art
 
 Drop images in and they appear automatically:
