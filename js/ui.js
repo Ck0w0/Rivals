@@ -113,16 +113,9 @@
   }
 
   function heroCard(key) {
-    const h = R.HEROES[key];
-    return `<div class="card t-hero" title="${esc(h.name)}">
-      <div class="card-head"><span class="card-name">${esc(h.name)}</span></div>
-      <div class="card-art">${R.icon(key, 'art-ico')}</div>
-      <div class="card-type">Hero</div><div class="card-text">${esc(h.text)}</div></div>`;
+    return `<div class="card full-art t-hero" title="${esc(R.HEROES[key].name)}">${R.cardFace(key)}</div>`;
   }
-  const shieldCard = () => `<div class="card t-shield" title="Shield">
-      <div class="card-head"><span class="card-name">Shield</span></div>
-      <div class="card-art">${R.icon('aegis', 'art-ico')}</div>
-      <div class="card-type">Shield</div><div class="card-text">Used in raids. If the raider picks a Shield, the raid fails.</div></div>`;
+  const shieldCard = () => `<div class="card full-art t-shield" title="Shield">${R.cardFace('shield')}</div>`;
 
   function gallery() {
     const f = ui.galleryFilter || 'all';
@@ -133,8 +126,8 @@
       items.push(`<div class="g-item">${card(key, { cls: 'g-card' })}<span class="g-count">×${d.n}<small>${d.deck === 'agora' ? 'Agora' : 'Oracle'}${d.noTwo ? ' · not in 2-player' : ''}</small></span></div>`);
     });
     if (f === 'all' || f === 'hero') {
-      Object.keys(R.HEROES).forEach(k => items.push(`<div class="g-item">${heroCard(k).replace('class="card t-hero"', 'class="card t-hero g-card"')}<span class="g-count">×1<small>Hero</small></span></div>`));
-      items.push(`<div class="g-item">${shieldCard().replace('class="card t-shield"', 'class="card t-shield g-card"')}<span class="g-count">×25<small>Shield pile</small></span></div>`);
+      Object.keys(R.HEROES).forEach(k => items.push(`<div class="g-item">${heroCard(k).replace('class="card full-art t-hero"', 'class="card full-art t-hero g-card"')}<span class="g-count">×1<small>Hero</small></span></div>`));
+      items.push(`<div class="g-item">${shieldCard().replace('class="card full-art t-shield"', 'class="card full-art t-shield g-card"')}<span class="g-count">×25<small>Shield pile</small></span></div>`);
     }
     setScreen('cards', `<div class="gallery-page"><div class="gallery">
       <header class="gallery-head"><h2>The Cards</h2><p>193 cards: 110 in the Oracle deck, 47 in the Agora, 25 Shields, 6 Heroes and 5 reference cards. Click a card to look closer.</p>
@@ -308,17 +301,19 @@
     return `<div class="card back ${deck || 'oracle'}-back ${cls || ''}" ${attrs || ''}><div class="back-inner">${R.icon('laurels')}</div></div>`;
   }
 
-  // Resource cards with a full painted face (assets/cards/<key>.png) show just the painting.
-  const FULL_ART = ['olives', 'bronze', 'marble', 'silver', 'hoplites'];
+  // These ship with paintings in assets/cards.
+  const PAINTED = ['olives', 'bronze', 'marble', 'silver', 'hoplites'];
 
-  // Layout follows the printing spec: name and category at the top, art in the middle, text and cost at the bottom.
+  // Every card shows a full painted face: a painting from assets/cards/<key>.png if there is one
+  // (the resource cards have them), otherwise the drawn face from cardart.js.
   function card(key, o) {
     o = o || {};
     const d = C[key];
     const act = o.act || (o.zone === 'hand' ? 'handCard' : o.zone === 'market' ? 'marketCard' : 'zoom');
     const arg = o.arg != null ? o.arg : o.id != null ? o.id : key;
-    if (FULL_ART.includes(key) && ui.art[key]) {
-      return `<div class="card full-art res-${d.res} ${o.cls || ''}" ${o.style || ''} data-act="${act}" data-arg="${esc(arg)}" title="${esc(d.name)}"><img src="assets/cards/${key}.png" alt="${esc(d.name)}"></div>`;
+    const face = ui.art[key] || PAINTED.includes(key) ? `<img src="assets/cards/${key}.png" alt="${esc(d.name)}">` : R.cardFace ? R.cardFace(key) : null;
+    if (face) {
+      return `<div class="card full-art t-${d.type} ${d.cat ? 'c-' + d.cat : ''} ${d.res ? 'res-' + d.res : ''} ${o.cls || ''}" ${o.style || ''} data-act="${act}" data-arg="${esc(arg)}" title="${esc(d.name)}">${face}</div>`;
     }
     const art = ui.art[key] ? `<img src="assets/cards/${key}.png" alt="">` : R.icon(key, 'art-ico');
     const pts = d.pts ? `<div class="pts" title="${d.pts} point${d.pts > 1 ? 's' : ''}">${d.pts}</div>` : '';
