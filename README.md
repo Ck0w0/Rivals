@@ -20,6 +20,8 @@ Drop images in and they appear automatically:
 
 | File | Used for |
 |---|---|
+| `assets/back-oracle.png`, `assets/back-agora.png` | Card backs for the Oracle deck (cards in hand) and the Agora deck (market, raids). |
+| `assets/table.png` | The wooden table the game is played on. |
 | `assets/menu-bg.png` | Menu background (replaces the drawn scene). Best without title or buttons, about 1600×1000. |
 | `assets/cards/<card>.png` | Picture in the middle of a card, e.g. `assets/cards/siege.png`, `assets/cards/goldenFleece.png`. Card names are the keys in `js/cards.js`. |
 | `assets/sfx/<name>.mp3` | Replaces a built-in sound. Names: click, draw, place, shuffle, coin, trade, raid, steal, clang, magic, zap, thunder, turn, tick, victory, defeat, error. |

@@ -20,7 +20,7 @@
     set(k, v) { try { localStorage.setItem('roo.' + k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } },
   };
 
-  const ui = { screen: 'menu', net: null, lobby: null, view: null, modal: null, targets: [], lastReveal: 0, deadlineAt: 0, art: {} };
+  const ui = { screen: 'menu', net: null, lobby: null, view: null, modal: null, targets: [], lastReveal: 0, deadlineAt: 0, art: {}, logOpen: store.get('logOpen', false) };
 
   // ---------- backdrop & optional artwork ----------
   document.getElementById('scene').innerHTML = R.menuScene();
@@ -303,9 +303,13 @@
     return d.text;
   }
 
-  function cardBack(cls, attrs) {
-    return `<div class="card back ${cls || ''}" ${attrs || ''}><div class="back-inner">${R.icon('laurels')}</div></div>`;
+  // deck is 'oracle' (red, cards you draw) or 'agora' (blue, the market and raid fans).
+  function cardBack(cls, attrs, deck) {
+    return `<div class="card back ${deck || 'oracle'}-back ${cls || ''}" ${attrs || ''}><div class="back-inner">${R.icon('laurels')}</div></div>`;
   }
+
+  // Resource cards with a full painted face (assets/cards/<key>.png) show just the painting.
+  const FULL_ART = ['olives', 'bronze', 'marble', 'silver', 'hoplites'];
 
   // Layout follows the printing spec: name and category at the top, art in the middle, text and cost at the bottom.
   function card(key, o) {
@@ -313,10 +317,13 @@
     const d = C[key];
     const act = o.act || (o.zone === 'hand' ? 'handCard' : o.zone === 'market' ? 'marketCard' : 'zoom');
     const arg = o.arg != null ? o.arg : o.id != null ? o.id : key;
+    if (FULL_ART.includes(key) && ui.art[key]) {
+      return `<div class="card full-art res-${d.res} ${o.cls || ''}" ${o.style || ''} data-act="${act}" data-arg="${esc(arg)}" title="${esc(d.name)}"><img src="assets/cards/${key}.png" alt="${esc(d.name)}"></div>`;
+    }
     const art = ui.art[key] ? `<img src="assets/cards/${key}.png" alt="">` : R.icon(key, 'art-ico');
     const pts = d.pts ? `<div class="pts" title="${d.pts} point${d.pts > 1 ? 's' : ''}">${d.pts}</div>` : '';
     const cost = d.type === 'point' || d.anyCost ? `<div class="cost">${costChips(d)}</div>` : '';
-    return `<div class="card t-${d.type} ${d.cat ? 'c-' + d.cat : ''} ${d.res ? 'res-' + d.res : ''} ${d.wild ? 'wild' : ''} ${o.cls || ''}" data-act="${act}" data-arg="${esc(arg)}" title="${esc(d.name)}">
+    return `<div class="card t-${d.type} ${d.cat ? 'c-' + d.cat : ''} ${d.res ? 'res-' + d.res : ''} ${d.wild ? 'wild' : ''} ${o.cls || ''}" ${o.style || ''} data-act="${act}" data-arg="${esc(arg)}" title="${esc(d.name)}">
       <div class="card-head"><span class="card-name">${esc(d.name)}</span>${d.cat ? `<span class="cat-ico">${R.icon(d.cat)}</span>` : ''}</div>
       <div class="card-art">${art}${pts}</div>
       <div class="card-type">${typeLabel(d)}</div>
@@ -352,13 +359,28 @@
 
   const avatar = p => `<div class="avatar">${p.hero ? R.icon(p.hero) : `<span>${esc(p.name.charAt(0).toUpperCase())}</span>`}</div>`;
 
-  function oppPanel(v, i) {
+  // Where opponents sit around the table, in turn order starting from the player on your left.
+  const SEAT_POS = { 1: ['top'], 2: ['left', 'right'], 3: ['left', 'top', 'right'], 4: ['left', 'top', 'top', 'right'] };
+
+  // A fan of face-down card backs, one per card in hand (capped so big hands stay tidy).
+  function backFan(count, cls) {
+    const n = Math.min(count, 9);
+    return `<div class="back-fan ${cls || ''}" title="${count} cards in hand">${Array.from({ length: n }, (_, k) => {
+      const t = n > 1 ? k / (n - 1) - 0.5 : 0;
+      return `<i style="--r:${(t * Math.min(40, n * 6)).toFixed(1)}deg;--y:${(t * t * 14).toFixed(1)}px"></i>`;
+    }).join('')}<b>${count}</b></div>`;
+  }
+
+  function seat(v, i, pos) {
     const p = v.players[i];
-    return `<div class="seat-box ${v.turn === i && v.winner == null ? 'active' : ''} ${p.connected ? '' : 'offline'}">
-      <div class="seat-top">${avatar(p)}
-        <div class="who"><b>${esc(p.name)}</b><small>${p.bot ? 'Computer' : p.connected ? 'Player' : 'Offline · a bot is playing'}</small></div>
-        <div class="mini-fan" title="${p.handCount} cards in hand">${'<i></i>'.repeat(Math.min(p.handCount, 6))}<b>${p.handCount}</b></div></div>
-      ${medals(p)}${badges(p)}${tableau(p)}</div>`;
+    return `<div class="seat seat-${pos} ${v.turn === i && v.winner == null ? 'active' : ''} ${p.connected ? '' : 'offline'}">
+      ${backFan(p.handCount)}
+      <div class="plate">${avatar(p)}<div class="who"><b>${esc(p.name)}</b><small>${p.bot ? 'Computer' : p.connected ? 'Player' : 'Offline · bot playing'}</small></div></div>
+      <div class="seat-info">${medals(p)}${badges(p)}${tableau(p)}</div></div>`;
+  }
+
+  function pile(inner, count, label, title) {
+    return `<div class="pile" title="${title}">${inner}<b class="count">${count}</b><span class="pile-label">${label}</span></div>`;
   }
 
   // ---------- game screen ----------
@@ -401,51 +423,67 @@
         : `${clockRing(v)}<div class="pips"><span class="pip ${v.actionsLeft ? 'on' : ''}" title="Actions left">Action ${v.actionsLeft}</span><span class="pip ${v.buysLeft ? 'on' : ''}" title="Buys left">Buy ${v.buysLeft}</span></div>
            ${btn('Trade 2 → 1', `data-act="tradeOpen" ${free && me.hand.length >= 2 ? '' : 'disabled'} title="Discard 2 cards to take 1 resource card of your choice"`, 'small')}
            ${btn('End Turn', `data-act="end" ${free ? '' : 'disabled'}`, 'primary')}`;
-    const handHTML = hand.map(c => card(c.key, { id: c.id, zone: 'hand',
-      cls: (free && v.actionsLeft && C[c.key].type === 'action' ? 'playable ' : '') + (C[c.key].type === 'hidden' ? 'secret' : '') })).join('');
+    // Your hand curves in an arc, like cards held in your hand.
+    const handHTML = hand.map((c, k) => {
+      const t = hand.length > 1 ? k / (hand.length - 1) - 0.5 : 0;
+      const style = `style="--r:${(t * Math.min(26, hand.length * 3.2)).toFixed(1)}deg;--y:${(t * t * 46).toFixed(1)}px"`;
+      return card(c.key, { id: c.id, zone: 'hand', style,
+        cls: (free && v.actionsLeft && C[c.key].type === 'action' ? 'playable ' : '') + (C[c.key].type === 'hidden' ? 'secret' : '') });
+    }).join('');
+    const pos = SEAT_POS[others.length] || [];
+    const seats = { left: '', top: '', right: '' };
+    others.forEach((i, k) => { seats[pos[k]] += seat(v, i, pos[k]); });
+    const last = v.log[v.log.length - 1];
     setScreen('game', `<div class="game">
-      <header class="topbar">
-        <div class="brand">Rivals <i>of</i> Olympus</div>
-        <div class="status ${free || mustDraw(v) ? 'mine' : ''}">${statusText(v)} ${turnClock(v)}</div>
-        <div class="top-actions"><span class="tgt">First to ${v.target} · Round ${Math.ceil(v.turnNo / n)}</span>
+      <header class="hud">
+        <div class="hud-left">
+          <button class="icon-btn" data-act="leave" title="Leave the game">${R.icon('exitDoor')}</button>
           <button class="icon-btn ${R.sfx.on ? '' : 'off'}" data-act="soundToggle" title="Sound ${R.sfx.on ? 'on' : 'off'}">${R.icon('lyre')}</button>
-          <button class="gbtn small" data-act="rulesModal">Rules</button><button class="gbtn small ghost" data-act="leave">Leave</button></div>
+          <button class="icon-btn" data-act="rulesModal" title="Rules">${R.icon('scroll')}</button>
+          <span class="tgt">First to ${v.target} · Round ${Math.ceil(v.turnNo / n)}</span>
+        </div>
+        <div class="hud-mid"><div class="status ${free || mustDraw(v) ? 'mine' : ''}">${statusText(v)} ${turnClock(v)}</div>
+          ${last ? `<div class="ticker">${esc(last.text)}</div>` : ''}</div>
+        <div class="hud-right"><button class="gbtn small ${ui.logOpen ? 'primary' : ''}" data-act="toggleLog">Chronicle</button></div>
       </header>
-      <section class="opps">${others.map(i => oppPanel(v, i)).join('')}</section>
-      <section class="board">
-        <div class="piles">
-          <div class="pile" title="Oracle deck: you draw from here">${cardBack('stack')}<b class="count">${v.oracleCount}</b><span>Oracle</span></div>
-          <div class="pile" title="Oracle discard pile">${v.oracleDiscardTop ? card(v.oracleDiscardTop, { cls: 'stack' }) : '<div class="card empty stack"></div>'}<b class="count">${v.oracleDiscardCount}</b><span>Discard</span></div>
-          <div class="pile" title="Agora supply: refills the market">${cardBack('stack agora-back')}<b class="count">${v.agoraCount}</b><span>Agora</span></div>
-        </div>
-        <div class="agora">
-          <h3 class="board-title"><span>The Agora</span></h3>
-          <div class="market">${v.market.map(c => c ? card(c.key, { id: c.id, zone: 'market', cls: free && v.buysLeft && canBuy(v, c.key) ? 'affordable' : '' }) : '<div class="card empty"></div>').join('')}</div>
+      <section class="arena">
+        <div class="seats-top">${seats.top}</div>
+        <div class="seats-left">${seats.left}</div>
+        <div class="seats-right">${seats.right}</div>
+        <div class="table">
+          <div class="table-area">
+            <div class="pile-col">${pile(cardBack('stack', '', 'agora'), v.agoraCount, 'Agora Supply', 'Agora supply: refills the market')}</div>
+            <div class="market">${v.market.map(c => c ? card(c.key, { id: c.id, zone: 'market', cls: free && v.buysLeft && canBuy(v, c.key) ? 'affordable' : '' }) : '<div class="card empty"></div>').join('')}</div>
+            <div class="pile-col">
+              ${pile(v.oracleDiscardTop ? card(v.oracleDiscardTop, { cls: 'stack' }) : '<div class="card empty stack"></div>', v.oracleDiscardCount, 'Discard', 'Oracle discard pile')}
+              ${pile(cardBack('stack', '', 'oracle'), v.oracleCount, 'Oracle Deck', 'Oracle deck: you draw from here')}
+            </div>
+          </div>
         </div>
       </section>
-      <aside class="chronicle"><h3>Chronicle</h3>
-        <div class="log" id="log">${v.log.map(l => `<p class="${/^—/.test(l.text) ? 'turn' : ''}">${esc(l.text)}</p>`).join('')}</div></aside>
-      <section class="mat ${myTurn ? 'active' : ''}">
-        <div class="mat-info">
-          <div class="seat-top">${avatar(me)}<div class="who"><b>${esc(me.name)}</b><small>You · ${me.hand.length} cards</small></div></div>
+      <section class="me-zone ${myTurn ? 'active' : ''}">
+        <div class="me-info">
+          <div class="plate">${avatar(me)}<div class="who"><b>${esc(me.name)}</b><small>You · ${me.hand.length} cards</small></div></div>
           ${medals(me, true)}${badges(me)}${tableau(me, 'Buy from the Agora to score points')}</div>
-        <div class="hand" id="hand">${handHTML || '<span class="hint">Your hand is empty.</span>'}</div>
-        <div class="mat-ctrl">${controls}</div>
+        <div class="hand-fan" id="hand">${handHTML || '<span class="hint">Your hand is empty.</span>'}</div>
+        <div class="me-ctrl">${controls}</div>
       </section>
+      <aside class="chronicle ${ui.logOpen ? 'open' : ''}"><div class="chron-head"><h3>Chronicle</h3><button class="icon-btn" data-act="toggleLog" title="Close">✕</button></div>
+        <div class="log" id="log">${v.log.map(l => `<p class="${/^—/.test(l.text) ? 'turn' : ''}">${esc(l.text)}</p>`).join('')}</div></aside>
     </div>`, true);
     fitHand();
     const log = document.getElementById('log');
     if (stick) log.scrollTop = log.scrollHeight;
   }
 
-  // Overlap hand cards just enough that they all fit on one row.
+  // Overlap hand cards just enough that they all fit.
   function fitHand() {
     const h = document.getElementById('hand');
     if (!h) return;
     const cards = h.querySelectorAll('.card'), n = cards.length;
     if (n < 2) { h.style.removeProperty('--gap'); return; }
-    const cw = cards[0].offsetWidth, avail = h.clientWidth - 24;
-    h.style.setProperty('--gap', Math.min(8, (avail - cw * n) / (n - 1)) + 'px');
+    const cw = cards[0].offsetWidth, avail = h.clientWidth - 40;
+    h.style.setProperty('--gap', Math.min(-14, (avail - cw * n) / (n - 1)) + 'px');
   }
   window.addEventListener('resize', fitHand);
 
@@ -492,7 +530,7 @@
   function showReveal(v, r) {
     const raider = pname(v, r.raider), dfd = r.defender === v.you ? 'your' : `${v.players[r.defender].name}'s`;
     // The picked card flips over in the middle of the screen.
-    const face = c => `<div class="flip"><div class="flip-inner">${cardBack('flip-back')}<div class="flip-front">${c}</div></div></div>`;
+    const face = c => `<div class="flip"><div class="flip-inner">${cardBack('flip-back', '', 'agora')}<div class="flip-front">${c}</div></div></div>`;
     if (r.ok) flash(`${face(card(r.card, { act: 'none' }))}<div>${esc(raider)} seized ${esc(dfd)}</div><div class="cardname">${esc(C[r.card].name)}</div>`, 'ok');
     else if (r.saved) flash(`${face(card(r.card, { act: 'none' }))}<div>The Phoenix rises!</div><div class="cardname">${esc(C[r.card].name)} is saved</div>`, 'fail');
     else flash(`${face(shieldCard())}<div>A Shield!</div><div class="cardname">${esc(raider)}${r.raider === v.you ? 'r' : "'s"} raid fails</div>`, 'fail');
@@ -533,7 +571,7 @@
     const fan = Array.from({ length: n }, (_, k) => {
       const t = n > 1 ? k / (n - 1) - 0.5 : 0;
       const style = `style="--rot:${(t * spread).toFixed(1)}deg;--lift:${(Math.abs(t) * 26).toFixed(0)}px;--i:${k}"`;
-      return cardBack('raid-card' + (mine ? ' pickable' : ''), `${style} ${mine ? `data-act="choose" data-arg="${k}"` : ''}`);
+      return cardBack('raid-card' + (mine ? ' pickable' : ''), `${style} ${mine ? `data-act="choose" data-arg="${k}"` : ''}`, 'agora');
     }).join('');
     const odds = phoenix ? '' : `<span class="odds">${r.cards} card${r.cards > 1 ? 's' : ''} · ${r.shields} Shield${r.shields > 1 ? 's' : ''} · ${Math.round((r.cards / r.size) * 100)}% to steal</span>`;
     const hint = mine ? (phoenix ? 'Pick a card.' : 'Pick a card! A Shield means the raid fails.') : `${esc(v.players[pd.player].name)} is picking…`;
@@ -550,7 +588,7 @@
       const raw = JSON.stringify(o.v), arg = esc(raw);
       if (o.card) return card(o.card, { act: 'choose', arg: raw, cls: 'pick' });
       if (o.label) return btn(esc(o.label), `data-act="choose" data-arg="${arg}"`, 'ghost');
-      return cardBack('pick', `data-act="choose" data-arg="${arg}"`);
+      return cardBack('pick', `data-act="choose" data-arg="${arg}"`, 'agora');
     }).join('');
     return modal(`<h2>${blind ? 'Choose Blindly' : 'Your Choice'}</h2><p class="prompt">${esc(pd.prompt)}</p><div class="choice-row ${blind ? 'blind' : ''}">${opts}</div>`, 'wide');
   }
@@ -749,6 +787,7 @@
     motion(on) { store.set('motion', on === '1'); applyMotion(); settings(); },
     sound(on) { R.sfx.set({ on: on === '1' }); settings(); },
     galleryFilter(f) { ui.galleryFilter = f; gallery(); },
+    toggleLog() { ui.logOpen = !ui.logOpen; store.set('logOpen', ui.logOpen); if (ui.view) renderGame(); },
     soundToggle() { R.sfx.set({ on: !R.sfx.on }); if (ui.view) renderGame(); },
     saveSettings() { readName(); toast('Settings saved.'); menu(); },
     rulesModal() { openModal({ type: 'rules' }); },
