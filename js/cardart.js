@@ -44,13 +44,13 @@ window.ROO = window.ROO || {};
   // ---- drawing helpers (art space is 200 x 170) ----
   const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const P = (d, fill, extra) => `<path d="${d}" fill="${fill}"${extra ? ' ' + extra : ''}/>`;
-  const hl = (d, o) => `<path d="${d}" fill="#fff" opacity="${o || 0.3}" stroke="none"/>`;
-  const sh = (d, o) => `<path d="${d}" fill="#000" opacity="${o || 0.18}" stroke="none"/>`;
+  const hl = (d, o) => `<path d="${d}" fill="#fff" opacity="${o || 0.3}" stroke="none" data-k="fx"/>`;
+  const sh = (d, o) => `<path d="${d}" fill="#000" opacity="${o || 0.18}" stroke="none" data-k="fx"/>`;
   const C = (x, y, r, fill, extra) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}"${extra ? ' ' + extra : ''}/>`;
   const E = (x, y, rx, ry, fill, extra) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${fill}"${extra ? ' ' + extra : ''}/>`;
   const L = (x1, y1, x2, y2, w, col) => `<path d="M${x1},${y1} L${x2},${y2}" fill="none" stroke="${col || INK}" stroke-width="${w || 3}"/>`;
   const star = (x, y, r, fill) => `<path d="M${x},${y - r} Q${x},${y} ${x + r},${y} Q${x},${y} ${x},${y + r} Q${x},${y} ${x - r},${y} Q${x},${y} ${x},${y - r}Z" fill="${fill || '#fff6c8'}" stroke="none"/>`;
-  const glow = (x, y, r, col) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${col || '#fff4c4'}" opacity=".55" stroke="none"/>`;
+  const glow = (x, y, r, col) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${col || '#fff4c4'}" opacity=".55" stroke="none" data-k="fx"/>`;
   const g = (t, body) => `<g transform="${t}">${body}</g>`;
   function waves(y, fill, amp) {
     amp = amp || 7;
@@ -361,20 +361,120 @@ window.ROO = window.ROO || {};
     shield: () => shieldDisc(100, 86, 70, '#9aa8b4', '#5d6670') + C(100, 86, 28, '#c8d0d8') + P('M100,62 L118,86 L100,110 L82,86Z', '#d6ad45') + C(100, 86, 6, '#a8322a'),
   };
 
-  // Faint laurel sprigs in the corners of the picture, like the resource paintings.
-  function sprigs(col) {
-    const sp = (x, y, ang, flip) => g(`translate(${x},${y}) rotate(${ang}) scale(${flip ? -1 : 1},1)`,
-      L(0, 0, 0, -30, 1.5, col) + leaf(0, -6, -150, 11, col) + leaf(0, -14, -150, 11, col) + leaf(0, -22, -150, 11, col) + leaf(0, -6, -30, 11, col) + leaf(0, -14, -30, 11, col) + leaf(0, -22, -30, 11, col));
-    return `<g opacity=".28" stroke="none">${sp(34, 104, -20)}${sp(218, 104, 20, true)}${sp(34, 230, -160, true)}${sp(218, 230, 160)}</g>`;
+  // The resources, drawn for the vase style. PALE lines are details cut through the glaze.
+  const PALE = '#e3a066';
+  Object.assign(ART, {
+    olives: () => P('M20,150 C60,120 110,92 182,30', 'none', 'stroke="#6b4a2a" stroke-width="6"') +
+      P('M70,116 C80,130 84,142 82,152 M118,82 C112,64 114,50 122,40 M150,56 C164,62 174,74 178,88', 'none', 'stroke="#6b4a2a" stroke-width="3.5"') +
+      leaf(36, 140, -70, 40, '#5f7f2e') + leaf(52, 128, 30, 42, '#5f7f2e') + leaf(96, 100, -80, 44, '#5f7f2e') + leaf(110, 92, 20, 40, '#5f7f2e') +
+      leaf(140, 66, -60, 40, '#5f7f2e') + leaf(158, 50, 40, 36, '#5f7f2e') + leaf(176, 34, -20, 26, '#5f7f2e') +
+      [[82, 156, '#3b2a40'], [126, 36, '#3b2a40'], [180, 92, '#8a2a30'], [68, 104, '#8a2a30'], [150, 108, '#3b2a40']].map(([x, y, c]) =>
+        E(x, y, 13, 17, c) + `<path d="M${x - 5},${y - 9} C${x - 8},${y - 3} ${x - 8},${y + 3} ${x - 5},${y + 7}" fill="none" stroke="${PALE}" stroke-width="2"/>`).join('') +
+      P('M68,104 L72,86 M150,108 L140,86', 'none', 'stroke="#6b4a2a" stroke-width="2.5"'),
+    bronze: () => {
+      const ingot = (x, y, s) => g(`translate(${x},${y}) scale(${s})`,
+        P('M-60,-26 Q0,-8 60,-26 Q48,0 60,26 Q0,8 -60,26 Q-48,0 -60,-26Z', '#c26a2c') +
+        `<path d="M-44,-14 Q0,-2 44,-14 M-44,14 Q0,2 44,14 M-20,-6 L-12,6 M8,-6 L16,6" fill="none" stroke="${PALE}" stroke-width="2"/>`);
+      return ingot(100, 132, 1.25) + ingot(96, 92, 1.15) + ingot(104, 54, 1.05) + star(40, 40, 8, '#fff6c8') + star(164, 30, 6, '#fff6c8');
+    },
+    marble: () => P('M28,150 H172 V162 H28Z', '#7d7468') +
+      P('M36,150 V96 H112 V150Z', '#f2efe6') + P('M36,96 L54,82 H130 L112,96Z', '#f2efe6') + P('M112,96 L130,82 V136 L112,150Z', '#ddd6c6') +
+      P('M120,150 V66 C120,58 168,58 168,66 V150Z', '#f2efe6') + E(144, 66, 24, 7, '#ddd6c6') +
+      P('M128,72 V146 M136,73 V148 M144,73 V148 M152,73 V148 M160,72 V146', 'none', 'stroke-width="1.6"') +
+      P('M48,112 L70,104 M60,132 L92,120', 'none', 'stroke-width="1.6"') +
+      g('translate(66,58) rotate(-35)', P('M-4,-26 h8 v40 h-8Z', '#7a4b28') + P('M-14,-40 h28 v16 h-28Z', '#5d6670')) +
+      g('translate(30,60) rotate(30)', P('M-3,-30 h6 v34 h-6Z', '#7a4b28') + P('M-1.5,4 h3 v14 l-1.5,4 l-1.5,-4Z', '#9aa3ad')),
+    silver: () => {
+      const coin = (x, y, r) => C(x, y, r + 5, '#9aa3ad') + C(x, y, r, '#e6eaee') +
+        g(`translate(${x},${y}) scale(${r / 46})`,
+          P('M-16,30 C-26,14 -24,-12 -14,-24 L-18,-36 L-6,-28 C-2,-30 2,-30 6,-28 L18,-36 L14,-24 C24,-12 26,14 16,30Z', INK) +
+          C(-8, -14, 7, '#e6eaee', 'stroke="none"') + C(8, -14, 7, '#e6eaee', 'stroke="none"') + C(-8, -14, 3, INK, 'stroke="none"') + C(8, -14, 3, INK, 'stroke="none"') +
+          P('M-4,-4 L0,4 L4,-4Z', '#e6eaee', 'stroke="none"') +
+          `<path d="M-10,8 l3,3 l3,-3 M2,8 l3,3 l3,-3 M-4,18 l3,3 l3,-3" fill="none" stroke="#e6eaee" stroke-width="1.6"/>` +
+          P('M24,-30 C30,-24 32,-16 30,-8', 'none', 'stroke="#5f7f2e" stroke-width="2.5"') + leaf(28, -26, -40, 12, '#5f7f2e') + leaf(31, -14, -10, 12, '#5f7f2e') +
+          `<text x="30" y="30" font-family="'Marcellus SC', serif" font-size="15" fill="${INK}" stroke="none">ΑΘΕ</text>`);
+      return coin(76, 98, 52) + coin(150, 62, 30) + C(150, 132, 22, '#9aa3ad') + C(150, 128, 22, '#e6eaee') + star(36, 34, 7, '#fff6c8');
+    },
+    hoplites: () => g('translate(110,92) rotate(32)', L(0, -96, 0, 96, 5) + P('M-7,-92 L0,-114 L7,-92Z', '#9aa3ad') + P('M-4,92 h8 v12 h-8Z', '#9aa3ad')) +
+      C(84, 102, 58, '#c99a46') + C(84, 102, 49, '#a8322a') +
+      `<path d="M84,70 L92,94 L116,102 L92,110 L84,134 L76,110 L52,102 L76,94Z" fill="#efe3cc"/>` + C(84, 102, 6, '#1b1310') +
+      g('translate(138,26) scale(.5)', P('M74,150 C60,120 60,86 68,62 C76,38 90,26 100,26 C110,26 124,38 132,62 C140,86 140,120 126,150 L112,150 L112,104 C112,96 106,92 100,92 C94,92 88,96 88,104 L88,150Z', '#d6a04a') +
+        `<path d="M74,78 C84,72 94,72 96,84 M126,78 C116,72 106,72 104,84" fill="none" stroke="${PALE}" stroke-width="5"/>` +
+        P('M100,26 C88,8 104,-4 120,4 C140,14 160,30 170,60 C150,46 130,36 104,30Z', '#a8322a')),
+  });
+
+  // ---- the vase-painting pass ----
+  // Black-figure (Oracle deck): figures in glaze on clay, outlines cut through as pale lines,
+  // light colours become added white and strong reds added red.
+  // Red-figure (Agora deck): the same drawing reversed, clay figures on a glaze ground.
+  const GLAZE = '#1b1310', CLAYC = '#c9693a', FIGC = '#d98a4e', WHITE = '#efe3cc', ADDRED = '#7c2c22', INCISE = '#e3a066';
+  const fxGone = /<(path|circle|ellipse)[^>]*data-k="fx"[^>]*\/>/g;
+  const panelGone = /<path d="M0,0 H200 V170 H0Z"[^>]*\/>/g;
+  function hexRgb(h) {
+    h = h.replace('#', '');
+    if (h.length === 3) h = h.split('').map(c => c + c).join('');
+    return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
   }
+  function tone(col) {
+    if (!col || col === 'none' || col[0] !== '#') return null;
+    const [r, gg, b] = hexRgb(col), mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), l = (mx + mn) / 2;
+    const sat = mx === mn ? 0 : (mx - mn) / (1 - Math.abs(2 * l - 1));
+    let hue = 0;
+    if (mx !== mn) hue = mx === r ? ((gg - b) / (mx - mn)) % 6 : mx === gg ? (b - r) / (mx - mn) + 2 : (r - gg) / (mx - mn) + 4;
+    hue = (hue * 60 + 360) % 360;
+    if (col.toLowerCase() === INK) return 'ink';
+    if (col.toLowerCase() === PALE) return 'pale';
+    if (l > 0.8) return 'white';
+    if ((hue > 335 || hue < 14) && sat > 0.45 && l > 0.25 && l < 0.62) return 'red';
+    return 'fig';
+  }
+  function vase(art, red) {
+    const fig = red ? FIGC : GLAZE, line = red ? GLAZE : INCISE;
+    const pick = (t) => t === 'white' ? WHITE : t === 'red' ? ADDRED : t === 'ink' ? GLAZE : t === 'pale' ? line : fig;
+    // see-through tints (water, haze) have no place in a two-material picture
+    const tint = /<(path|circle|ellipse)(?=[^>]*stroke="none")[^>]*opacity="(0?\.[0-5]\d*)"[^>]*\/>/g;
+    return art.replace(fxGone, '').replace(panelGone, '').replace(tint, '').replace(/<(path|circle|ellipse)([^>]*)\/>/g, (m, tag, attrs) => {
+      const fill = (attrs.match(/ fill="([^"]*)"/) || [])[1];
+      const stroke = (attrs.match(/ stroke="([^"]*)"/) || [])[1];
+      let a = attrs.replace(/ fill="[^"]*"/, '').replace(/ stroke="[^"]*"/, '').replace(/ opacity="[^"]*"/, '');
+      if (!fill || fill === 'none') {
+        const t = tone(stroke || INK);
+        // fine dark lines are details: cut through the glaze (black-figure) or drawn as relief lines (red-figure)
+        const w = parseFloat((attrs.match(/stroke-width="([^"]*)"/) || [])[1] || '3');
+        const detail = (t === 'ink' || t === 'fig') && w <= 2.5;
+        return `<${tag}${a} fill="none" stroke="${detail ? line : pick(t)}"/>`;
+      }
+      const t = tone(fill);
+      const out = stroke === 'none' ? 'none' : line;
+      if (stroke !== 'none') a = a.replace(/ stroke-width="[^"]*"/, '') + ` stroke-width="${red ? 1.6 : 1.4}"`;
+      return `<${tag}${a} fill="${pick(t)}" stroke="${out}"/>`;
+    });
+  }
+
+  // Accent per family, and per resource: the only hue a card is allowed besides its materials.
+  const ACCENT = {
+    raid: '#a8402c', god: '#6b4f8a', reaction: '#3f6f8f', hidden: '#5b524b', event: '#3d4a7a', wild: '#c08a2e',
+    fleet: '#2f6a96', polis: '#9a7a46', treasure: '#b8902a', blessing: '#2f7f7a', chaos: '#8c2a3c', hero: '#8a5a2c', shield: '#6a7884',
+  };
+  const RES_ACCENT = { olives: '#6f8a2e', bronze: '#c26a2c', silver: '#6f8299', marble: '#d8d2c4', hoplites: '#a8322a' };
+
   function meander(x, y, w, col) {
-    let d = `M${x},${y + 14} H${x + w}`;
-    for (let k = x + 4; k + 16 <= x + w; k += 18) d += ` M${k},${y + 14} V${y + 2} H${k + 14} V${y + 10} H${k + 6} V${y + 6} H${k + 10}`;
-    return `<path d="${d}" fill="none" stroke="${col}" stroke-width="2"/>`;
+    let d = `M${x},${y + 14} H${x + w} M${x},${y} H${x + w}`;
+    for (let k = x + 3; k + 15 <= x + w; k += 17) d += ` M${k},${y + 14} V${y + 2} H${k + 13} V${y + 10} H${k + 5} V${y + 6} H${k + 9}`;
+    return `<path d="${d}" fill="none" stroke="${col}" stroke-width="1.8"/>`;
   }
-  // Text wrapped by an estimate of the font's width (Alegreya Sans averages ~0.47 em).
+  function tongueRow(x, y, w, n) {
+    const u = w / n;
+    let out = '';
+    for (let i = 0; i < n; i++) {
+      const cx = x + i * u + u / 2;
+      out += `<path d="M${cx - u * .38},${y} A${u * .38},${u * .5} 0 0 0 ${cx + u * .38},${y} Z" fill="${i % 2 ? ADDRED : CLAYC}" stroke="none"/>`;
+    }
+    return out;
+  }
+  // Text is wrapped by an estimate of Alegreya Sans' average width.
   function wrap(text, size, width) {
-    const max = Math.floor(width / (size * 0.43));
+    const max = Math.floor(width / (size * 0.45));
     const lines = [];
     let cur = '';
     text.split(' ').forEach(w => {
@@ -387,70 +487,74 @@ window.ROO = window.ROO || {};
     olives: E(0, 0, 4, 5.5, '#c6d77a', 'stroke="none"'),
     bronze: P('M-6,3 L-4,-3 H4 L6,3Z', '#f2b27a', 'stroke="none"'),
     silver: C(0, 0, 5, '#dfe7ef', 'stroke="none"'),
-    marble: P('M-5,-5 H5 V5 H-5Z', '#b8b0a0', 'stroke="none"'),
+    marble: P('M-5,-5 H5 V5 H-5Z', '#8a8274', 'stroke="none"'),
     hoplites: P('M0,-7 L2,-2 V7 H-2 V-2Z', '#f2d0c8', 'stroke="none"'),
   };
   function gem(x, y, res) {
-    const fill = res ? RES_COL[res] : '#d6ad45';
+    const fill = res ? RES_ACCENT[res] : '#c99a46';
     const mark = res ? RES_MARK[res] : star(0, 0, 6, '#fff');
-    return g(`translate(${x},${y})`, `<circle r="11" fill="${fill}" stroke="${INK}" stroke-width="2"/>` + mark);
+    return g(`translate(${x},${y})`, `<circle r="11" fill="${fill}" stroke="${GLAZE}" stroke-width="2.2"/><circle r="12.6" fill="none" stroke="${WHITE}" stroke-width="1"/>` + mark);
   }
   const CAT_MARK = {
-    fleet: P('M-8,2 H8 L5,6 H-5Z M0,2 V-8 L6,0 H0', '#fff', 'stroke="none"'),
-    polis: P('M-8,-5 L0,-9 L8,-5Z M-6,-4 h2 v9 h-2Z M-1,-4 h2 v9 h-2Z M4,-4 h2 v9 h-2Z M-8,5 h16 v2 h-16Z', '#fff', 'stroke="none"'),
-    treasure: C(0, 0, 7, '#fff', 'stroke="none"') + C(0, 0, 3.5, CAT_COL.treasure, 'stroke="none"'),
+    fleet: P('M-8,2 H8 L5,6 H-5Z M0,2 V-8 L6,0 H0', WHITE, 'stroke="none"'),
+    polis: P('M-8,-5 L0,-9 L8,-5Z M-6,-4 h2 v9 h-2Z M-1,-4 h2 v9 h-2Z M4,-4 h2 v9 h-2Z M-8,5 h16 v2 h-16Z', WHITE, 'stroke="none"'),
+    treasure: C(0, 0, 7, WHITE, 'stroke="none"') + C(0, 0, 3.5, ACCENT.treasure, 'stroke="none"'),
   };
 
-  // The whole card face. d may be a card def or a hero/shield pseudo-def {name, type, text}.
-  function face(key, d) {
+  // The whole face: name register, tongue frieze, picture panel, white tablet, running key.
+  function face(key, d, figure) {
     const fam = d.type === 'hero' ? 'hero' : d.type === 'shield' ? 'shield' : family(d);
-    const [dk, lt] = FRAME[fam];
+    const accent = d.res ? RES_ACCENT[d.res] : ACCENT[fam];
+    const redFig = figure ? figure === 'red' : d.deck === 'agora';
     const name = d.name;
-    const nameSize = Math.min(17, Math.max(10, 166 / (name.length * 0.78)));
-    const nameFit = name.length * nameSize * 0.78 > 168 ? ' textLength="168" lengthAdjust="spacingAndGlyphs"' : '';
+    const nameSize = Math.min(17, Math.max(10, 158 / (name.length * 0.74)));
+    const nameFit = name.length * nameSize * 0.74 > 162 ? ' textLength="162" lengthAdjust="spacingAndGlyphs"' : '';
     const draw = ART[key];
-    const art = draw ? draw() : '';
-    const label = d.type === 'hero' ? 'Hero' : d.type === 'shield' ? 'Shield' : typeLabel(d);
+    const art = draw ? vase(draw(), redFig) : '';
+    const label = d.type === 'hero' ? 'Hero' : d.type === 'shield' ? 'Shield' : d.res ? 'Resource' : typeLabel(d);
     const text = d.type === 'hero' || d.type === 'shield' ? d.text : rulesText(d);
-    const fs = text.length <= 40 ? 16 : text.length <= 70 ? 14.5 : text.length <= 100 ? 13 : 11.8;
-    const lines = wrap(text, fs, 204);
-    const lh = fs * 1.12, top = 284 - ((lines.length - 1) * lh) / 2 + fs * .35;
+    const fs = text.length <= 12 ? 19 : text.length <= 40 ? 15.5 : text.length <= 70 ? 14 : text.length <= 100 ? 12.6 : 11.4;
+    const lines = wrap(text, fs, 200);
+    const lh = fs * 1.14, top = 283 - ((lines.length - 1) * lh) / 2 + fs * .35;
     let extras = '';
-    if (d.cat) extras += g('translate(38,84)', `<circle r="14" fill="${CAT_COL[d.cat]}" stroke="${INK}" stroke-width="2.4"/>` + CAT_MARK[d.cat]);
-    if (d.pts) extras += g('translate(214,84)', `<circle r="16" fill="#e8c35a" stroke="${INK}" stroke-width="2.4"/><circle r="12" fill="none" stroke="#fff3c0" stroke-width="1.2"/><text y="7" text-anchor="middle" font-family="Cinzel, serif" font-weight="900" font-size="20" fill="${INK}">${d.pts}</text>`);
+    if (d.cat) extras += g('translate(36,82)', `<circle r="13" fill="${ACCENT[d.cat]}" stroke="${GLAZE}" stroke-width="2.2"/><circle r="15" fill="none" stroke="${WHITE}" stroke-width="1"/>` + CAT_MARK[d.cat]);
+    if (d.pts) extras += g('translate(216,82)', `<circle r="16" fill="${WHITE}" stroke="${GLAZE}" stroke-width="2.4"/><circle r="12.5" fill="none" stroke="${accent}" stroke-width="1.4"/><text y="6.5" text-anchor="middle" font-family="'Marcellus SC', serif" font-size="19" fill="${GLAZE}">${d.pts}</text>`);
     if (d.cost) {
       const list = [];
       Object.keys(d.cost).forEach(r => { for (let i = 0; i < d.cost[r]; i++) list.push(r); });
-      list.forEach((r, i) => { extras += gem(126 - (list.length - 1) * 13 + i * 26, 226, r); });
+      list.forEach((r, i) => { extras += gem(126 - (list.length - 1) * 13 + i * 26, 214, r); });
     } else if (d.anyCost) {
-      for (let i = 0; i < d.anyCost; i++) extras += gem(126 - (d.anyCost - 1) * 13 + i * 26, 226, null);
+      for (let i = 0; i < d.anyCost; i++) extras += gem(126 - (d.anyCost - 1) * 13 + i * 26, 214, null);
     }
+    const ground = redFig ? 'assets/glaze.png' : 'assets/clay.png';
     return `<svg class="card-face" viewBox="0 0 252 352" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(name)}">
-<rect x="1" y="1" width="250" height="350" rx="16" fill="${dk}"/>
-<rect x="6" y="6" width="240" height="340" rx="12" fill="none" stroke="${lt}" stroke-width="2"/>
-<rect x="16" y="60" width="220" height="176" fill="${PARCH}" stroke="${INK}" stroke-width="2"/>
-${sprigs(dk)}
-<svg x="26" y="63" width="200" height="170" viewBox="0 0 200 170" overflow="hidden"><g stroke="${INK}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">${art}</g></svg>
-<rect x="16" y="60" width="220" height="176" fill="none" stroke="${INK}" stroke-width="2"/>
-<rect x="19" y="63" width="214" height="170" fill="none" stroke="${dk}" stroke-width="1.2" opacity=".5"/>
+<rect x="0" y="0" width="252" height="352" rx="14" fill="${GLAZE}"/>
+<rect x="6" y="6" width="240" height="340" rx="10" fill="none" stroke="${CLAYC}" stroke-width="1.2"/>
+<rect x="16" y="14" width="220" height="32" rx="3" fill="${CLAYC}"/>
+<image href="assets/clay.png" x="16" y="14" width="220" height="32" preserveAspectRatio="xMidYMid slice"/>
+<path d="M24,30 h0.01 M30,30 h0.01 M222,30 h0.01 M228,30 h0.01" stroke="${GLAZE}" stroke-width="3.4" stroke-linecap="round"/>
+<text x="126" y="${30 + nameSize * .34}" text-anchor="middle" font-family="'Marcellus SC', serif" font-size="${nameSize.toFixed(1)}" letter-spacing=".1em" fill="${GLAZE}"${nameFit}>${esc(name.toUpperCase())}</text>
+${tongueRow(18, 50, 216, 18)}
+<rect x="16" y="62" width="220" height="170" fill="${redFig ? GLAZE : CLAYC}"/>
+<image href="${ground}" x="16" y="62" width="220" height="170" preserveAspectRatio="xMidYMid slice"/>
+<svg x="26" y="62" width="200" height="170" viewBox="0 0 200 170" overflow="hidden"><g stroke="${GLAZE}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">${art}</g></svg>
+<rect x="16" y="62" width="220" height="170" fill="none" stroke="${accent}" stroke-width="2.4"/>
+<rect x="20.5" y="66.5" width="211" height="161" fill="none" stroke="${redFig ? CLAYC : GLAZE}" stroke-width=".8" opacity=".55"/>
 ${extras}
-<rect x="16" y="14" width="220" height="38" rx="6" fill="${PARCH}" stroke="${INK}" stroke-width="2"/>
-<rect x="20" y="18" width="212" height="30" rx="4" fill="none" stroke="${dk}" stroke-width="1.2"/>
-<path d="M30,33 l5,-5 l5,5 l-5,5Z M212,33 l5,-5 l5,5 l-5,5Z" fill="${dk}"/>
-<text x="126" y="${33 + nameSize * .36}" text-anchor="middle" font-family="Cinzel, serif" font-weight="700" font-size="${nameSize.toFixed(1)}" letter-spacing=".04em" fill="${dk}"${nameFit}>${esc(name.toUpperCase())}</text>
-<rect x="16" y="242" width="220" height="78" rx="4" fill="${PARCH}" stroke="${INK}" stroke-width="2"/>
-<rect x="66" y="235" width="120" height="16" rx="8" fill="${dk}" stroke="${INK}" stroke-width="1.5"/>
-<text x="126" y="246.6" text-anchor="middle" font-family="Cinzel, serif" font-weight="700" font-size="9.5" letter-spacing=".12em" fill="#f6ecd2">${esc(label.toUpperCase())}</text>
-<text font-family="'Alegreya Sans', sans-serif" font-weight="500" font-size="${fs}" fill="${INK}" text-anchor="middle">${lines.map((l, i) => `<tspan x="126" y="${(top + i * lh).toFixed(1)}">${esc(l)}</tspan>`).join('')}</text>
-<rect x="16" y="324" width="220" height="18" fill="${PARCH_D}" stroke="${INK}" stroke-width="1.5"/>
-${meander(20, 326, 212, dk)}
+<rect x="16" y="240" width="220" height="78" rx="3" fill="${WHITE}"/>
+<rect x="20" y="244" width="212" height="70" rx="2" fill="none" stroke="${GLAZE}" stroke-width=".8" opacity=".4"/>
+<rect x="68" y="225" width="116" height="15" rx="7.5" fill="${accent}" stroke="${GLAZE}" stroke-width="1.6"/>
+<text x="126" y="235.6" text-anchor="middle" font-family="'Marcellus SC', serif" font-size="9.5" letter-spacing=".14em" fill="${d.res === 'marble' ? GLAZE : WHITE}">${esc(label.toUpperCase())}</text>
+<text font-family="'Alegreya Sans', sans-serif" font-weight="500" font-size="${fs}" fill="${GLAZE}" text-anchor="middle">${lines.map((l, i) => `<tspan x="126" y="${(top + i * lh).toFixed(1)}">${esc(l)}</tspan>`).join('')}</text>
+${meander(20, 324, 212, CLAYC)}
 </svg>`;
   }
 
   R.CARD_ART = ART;
-  R.cardFace = function (key) {
+  // figure: 'black' or 'red' forces a technique; by default the Oracle deck is black-figure and the Agora red-figure.
+  R.cardFace = function (key, figure) {
     if (R.HEROES && R.HEROES[key]) return face(key, { name: R.HEROES[key].name, type: 'hero', text: R.HEROES[key].text });
     if (key === 'shield') return face('shield', { name: 'Shield', type: 'shield', text: 'Used in raids. If the raider picks a Shield, the raid fails.' });
-    return face(key, R.CARDS[key]);
+    return face(key, R.CARDS[key], figure);
   };
 })(window.ROO);

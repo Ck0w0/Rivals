@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<base href="../">
+<title>Reserved Ground, Plate I</title>
+<link href="https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Alegreya+Sans:wght@500&display=swap" rel="stylesheet">
+<style>
+  /* Reserved Ground, Plate I. The source for design/plate-reserved-ground.png (2400 x 1600). */
+  @font-face { font-family: Italiana; src: url("file:///C:/Users/Admin/.claude/skills/canvas-design/canvas-fonts/Italiana-Regular.ttf"); }
+  @font-face { font-family: PlexMono; src: url("file:///C:/Users/Admin/.claude/skills/canvas-design/canvas-fonts/IBMPlexMono-Regular.ttf"); }
+  @font-face { font-family: CrimsonItalic; src: url("file:///C:/Users/Admin/.claude/skills/canvas-design/canvas-fonts/CrimsonPro-Italic.ttf"); }
+  :root { --ground: #ede2cb; --glaze: #1b1310; --clay: #c9693a; --red: #7c2c22; --ash: #6b6157; }
+  html, body { margin: 0; background: var(--ground); }
+  .plate { position: relative; width: 2400px; height: 1600px; box-sizing: border-box; padding: 96px 104px; background:
+      radial-gradient(ellipse 70% 60% at 40% 45%, rgba(255, 250, 238, .55), transparent 70%), var(--ground); color: var(--glaze); overflow: hidden; }
+  .head { display: flex; align-items: flex-end; justify-content: space-between; height: 128px; }
+  .title { font-family: Italiana; font-size: 92px; letter-spacing: .22em; line-height: 1; margin: 0; font-weight: 400; }
+  .sub { font-family: PlexMono; font-size: 17px; letter-spacing: .18em; text-transform: uppercase; color: var(--ash); margin: 0 0 10px; }
+  .rule { height: 1px; background: var(--glaze); opacity: .55; margin: 34px 0 0; }
+  .body { position: absolute; left: 104px; right: 104px; top: 300px; bottom: 236px; display: flex; align-items: center; justify-content: space-between; }
+  .pair { display: flex; gap: 64px; align-items: flex-start; }
+  .fig { display: flex; flex-direction: column; gap: 20px; }
+  .fig .card { width: 540px; height: 754px; filter: drop-shadow(0 18px 26px rgba(27, 19, 16, .28)); }
+  .fig .card svg { width: 100%; height: 100%; display: block; }
+  .cap { display: flex; justify-content: space-between; font-family: PlexMono; font-size: 15px; letter-spacing: .14em; text-transform: uppercase; color: var(--ash); }
+  .cap em { font-family: CrimsonItalic; font-style: normal; font-size: 22px; letter-spacing: .02em; text-transform: none; color: var(--glaze); }
+  .axis { width: 1px; align-self: stretch; background: linear-gradient(transparent, rgba(27, 19, 16, .5) 12%, rgba(27, 19, 16, .5) 88%, transparent); position: relative; margin: 0 -32px; }
+  .axis span { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-90deg); background: var(--ground); padding: 0 14px; font-family: PlexMono; font-size: 13px; letter-spacing: .3em; color: var(--ash); white-space: nowrap; }
+  .grid { display: grid; grid-template-columns: repeat(4, 196px); column-gap: 46px; row-gap: 30px; }
+  .spec { display: flex; flex-direction: column; gap: 10px; }
+  .spec .card { width: 196px; height: 274px; filter: drop-shadow(0 8px 12px rgba(27, 19, 16, .22)); }
+  .spec .card svg { width: 100%; height: 100%; display: block; }
+  .spec b { font-family: PlexMono; font-weight: 400; font-size: 13px; letter-spacing: .16em; color: var(--ash); display: flex; justify-content: space-between; }
+  .spec b i { font-style: normal; width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--glaze); align-self: center; }
+  .spec b i.black { background: var(--glaze); }
+  .spec b i.red { background: var(--clay); }
+  .foot { position: absolute; left: 104px; right: 104px; bottom: 96px; }
+  .foot svg { display: block; width: 100%; height: 22px; }
+  .marks { display: flex; justify-content: space-between; align-items: center; margin-top: 22px; font-family: PlexMono; font-size: 14px; letter-spacing: .2em; text-transform: uppercase; color: var(--ash); }
+  .scale { display: flex; align-items: center; gap: 14px; }
+  .scale i { display: block; width: 252px; height: 8px; border: 1px solid var(--glaze); border-top: 0; box-sizing: border-box; }
+  .reg { position: absolute; width: 26px; height: 26px; }
+  .reg::before, .reg::after { content: ''; position: absolute; background: var(--glaze); opacity: .6; }
+  .reg::before { left: 12px; top: 0; width: 1px; height: 26px; }
+  .reg::after { top: 12px; left: 0; height: 1px; width: 26px; }
+  .reg.tl { left: 40px; top: 40px; } .reg.tr { right: 40px; top: 40px; } .reg.bl { left: 40px; bottom: 40px; } .reg.br { right: 40px; bottom: 40px; }
+</style>
+</head>
+<body>
+<div class="plate" id="plate">
+  <div class="reg tl"></div><div class="reg tr"></div><div class="reg bl"></div><div class="reg br"></div>
+  <div class="head">
+    <h1 class="title">RESERVED GROUND</h1>
+    <p class="sub">Plate I · one drawing, two keys</p>
+  </div>
+  <div class="rule"></div>
+  <div class="body">
+    <div class="pair">
+      <div class="fig"><div class="card" id="figA"></div><div class="cap"><span>fig. 1</span><em>dark upon clay</em></div></div>
+      <div class="axis"><span>INVERSION</span></div>
+      <div class="fig"><div class="card" id="figB"></div><div class="cap"><span>fig. 2</span><em>clay upon dark</em></div></div>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+  <div class="foot">
+    <svg id="key" viewBox="0 0 2192 22" preserveAspectRatio="none"></svg>
+    <div class="marks"><span class="scale"><i></i>63 mm</span><span>Oracle · Agora</span><span>I · 01–12</span></div>
+  </div>
+</div>
+<script src="js/cards.js"></script>
+<script src="js/cardart.js"></script>
+<script>
+  const R = ROO;
+  document.getElementById('figA').innerHTML = R.cardFace('athena', 'black');
+  document.getElementById('figB').innerHTML = R.cardFace('athena', 'red');
+  const SPEC = [['olives', 'black'], ['bronze', 'black'], ['silver', 'black'], ['hoplites', 'black'],
+    ['zeus', 'black'], ['hades', 'black'], ['trojanHorse', 'black'], ['loom', 'black'],
+    ['warGalley', 'red'], ['temple', 'red'], ['goldenFleece', 'red'], ['phoenixEmber', 'red']];
+  document.getElementById('grid').innerHTML = SPEC.map(([k, f], i) =>
+    `<div class="spec"><div class="card">${R.cardFace(k, f)}</div><b><span>I.${String(i + 1).padStart(2, '0')}</span><i class="${f}"></i></b></div>`).join('');
+  // the running key that seals the base of the plate
+  let d = 'M0,21 H2192 M0,1 H2192';
+  for (let x = 4; x + 18 <= 2192; x += 22) d += ` M${x},21 V3 H${x + 17} V15 H${x + 6} V9 H${x + 11}`;
+  document.getElementById('key').innerHTML = `<path d="${d}" fill="none" stroke="#1b1310" stroke-width="1.6"/>`;
+</script>
+</body>
+</html>

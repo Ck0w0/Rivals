@@ -269,7 +269,7 @@ body.in-game #scene { display: none; }
 /* the wooden table */
 .table { grid-area: table; position: relative; align-self: center; justify-self: center; width: min(100%, calc((100vh - 330px) * 2.04)); aspect-ratio: 1535 / 752;
   background: url("../assets/table.png") center / 100% 100% no-repeat; filter: drop-shadow(0 26px 30px rgba(0, 0, 0, .65)); }
-.table-area { position: absolute; left: 13%; right: 13%; top: 11%; bottom: 17%; display: flex; align-items: center; justify-content: center; gap: 3%; }
+.table-area { position: absolute; left: 7%; right: 7%; top: 15%; bottom: 15%; display: flex; align-items: center; justify-content: center; gap: 3%; }
 .market { --cw: clamp(70px, 12vh, 132px); --ch: calc(var(--cw) * 1.395); display: grid; grid-template-columns: repeat(4, var(--cw)); gap: calc(var(--cw) * .1); }
 .market .card-name { font-size: calc(var(--cw) * .088); }
 .market .card-text { font-size: calc(var(--cw) * .08); }
@@ -636,7 +636,7 @@ body.no-motion *, body.no-motion *::before, body.no-motion *::after { animation-
   .back-fan b { min-width: 18px; height: 18px; padding: 0 4px; font-size: 10px; border-width: 1.5px; }
 
   .table { width: min(100%, calc((100vh - 176px) * 2.04)); width: min(100%, calc((100dvh - 176px) * 2.04)); }
-  .table-area { left: 12%; right: 12%; top: 11%; bottom: 16%; gap: 3%; }
+  .table-area { left: 6%; right: 6%; top: 14%; bottom: 14%; gap: 3%; }
   .market { --cw: calc((100vh - 176px) * .235); --cw: calc((100dvh - 176px) * .235); }
   .card.stack { --cw: calc((100vh - 176px) * .19); --cw: calc((100dvh - 176px) * .19); --ch: calc(var(--cw) * 1.395); }
   .pile-col { gap: 8px; }

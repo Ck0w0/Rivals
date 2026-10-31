@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<!--
+    THIS IS A TEMPLATE THAT SHOULD BE USED EVERY TIME AND MODIFIED.
+    WHAT TO KEEP:
+    ✓ Overall structure (header, sidebar, main content)
+    ✓ Anthropic branding (colors, fonts, layout)
+    ✓ Seed navigation section (always include this)
+    ✓ Self-contained artifact (everything inline)
+
+    WHAT TO CREATIVELY EDIT:
+    ✗ The p5.js algorithm (implement YOUR vision)
+    ✗ The parameters (define what YOUR art needs)
+    ✗ The UI controls (match YOUR parameters)
+
+    Let your philosophy guide the implementation.
+    The world is your oyster - be creative!
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three Firings</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Anthropic Brand Colors */
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sidebar h1 {
+            font-family: 'Lora', serif;
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .sidebar .subtitle {
+            color: var(--anthropic-mid-gray);
+            font-size: 14px;
+            margin-bottom: 32px;
+            line-height: 1.4;
+        }
+
+        /* Control Sections */
+        .control-section {
+            margin-bottom: 32px;
+        }
+
+        .control-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--anthropic-dark);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-section h3::before {
+            content: '•';
+            color: var(--anthropic-orange);
+            font-weight: bold;
+        }
+
+        /* Seed Controls */
+        .seed-input {
+            width: 100%;
+            background: var(--anthropic-light);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-bottom: 12px;
+            border: 1px solid var(--anthropic-light-gray);
+            text-align: center;
+        }
+
+        .seed-input:focus {
+            outline: none;
+            border-color: var(--anthropic-orange);
+            box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1);
+            background: white;
+        }
+
+        .seed-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .regen-button {
+            margin-bottom: 0;
+        }
+
+        /* Parameter Controls */
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 4px;
+            background: var(--anthropic-light-gray);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            background: #c86641;
+        }
+
+        .slider-container input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .value-display {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            min-width: 60px;
+            text-align: right;
+        }
+
+        /* Color Pickers */
+        .color-group {
+            margin-bottom: 16px;
+        }
+
+        .color-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            margin-bottom: 4px;
+        }
+
+        .color-picker-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .color-picker-container input[type="color"] {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+        }
+
+        .color-value {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+        }
+
+        /* Buttons */
+        .button {
+            background: var(--anthropic-orange);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .button:hover {
+            background: #c86641;
+            transform: translateY(-1px);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .button.secondary {
+            background: var(--anthropic-blue);
+        }
+
+        .button.secondary:hover {
+            background: #5a8bb8;
+        }
+
+        .button.tertiary {
+            background: var(--anthropic-green);
+        }
+
+        .button.tertiary:hover {
+            background: #6b7b52;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .button-row .button {
+            flex: 1;
+        }
+
+        /* Canvas Area */
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+        }
+
+        #canvas-container {
+            width: 100%;
+            max-width: 1000px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(20, 20, 19, 0.1);
+            background: white;
+        }
+
+        #canvas-container canvas {
+            display: block;
+            width: 100% !important;
+            height: auto !important;
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: var(--anthropic-mid-gray);
+        }
+
+        /* Responsive - Stack on mobile */
+        @media (max-width: 600px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+            }
+
+            .canvas-area {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Control Sidebar -->
+        <div class="sidebar">
+            <!-- Headers -->
+            <h1>Three Firings</h1>
+            <div class="subtitle">A simulated Attic kiln fires the card backs, the table and the clay of Rivals of Olympus. Painted intention, fired by a seeded atmosphere.</div>
+
+            <!-- Seed Section (ALWAYS KEEP THIS) -->
+            <div class="control-section">
+                <h3>Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="12345" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← Prev</button>
+                    <button class="button secondary" onclick="nextSeed()">Next →</button>
+                </div>
+                <button class="button tertiary regen-button" onclick="randomSeedAndUpdate()">↻ Random</button>
+            </div>
+
+            <!-- Parameters Section -->
+            <div class="control-section">
+                <h3>Parameters</h3>
+
+                <div class="control-group">
+                    <label>Vessel</label>
+                    <div class="slider-container">
+                        <select id="mode" class="seed-input" style="margin-bottom:0" onchange="updateParam('mode', this.value)">
+                            <option value="oracle">Oracle card back</option>
+                            <option value="agora">Agora card back</option>
+                            <option value="table">Table</option>
+                            <option value="clay">Clay ground</option>
+                            <option value="glaze">Glaze ground</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Oxygen (misfire)</label>
+                    <div class="slider-container">
+                        <input type="range" id="oxygen" min="0" max="1" step="0.05" value="0.35" oninput="updateParam('oxygen', this.value)">
+                        <span class="value-display" id="oxygen-value">0.35</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Fire Clouds</label>
+                    <div class="slider-container">
+                        <input type="range" id="clouds" min="0" max="1" step="0.05" value="0.45" oninput="updateParam('clouds', this.value)">
+                        <span class="value-display" id="clouds-value">0.45</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Brush Tremor</label>
+                    <div class="slider-container">
+                        <input type="range" id="tremor" min="0" max="3" step="0.1" value="1" oninput="updateParam('tremor', this.value)">
+                        <span class="value-display" id="tremor-value">1</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Crazing</label>
+                    <div class="slider-container">
+                        <input type="range" id="crazing" min="0" max="1" step="0.05" value="0.4" oninput="updateParam('crazing', this.value)">
+                        <span class="value-display" id="crazing-value">0.4</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Density (vapours, tokens)</label>
+                    <div class="slider-container">
+                        <input type="range" id="density" min="0.2" max="2" step="0.1" value="1" oninput="updateParam('density', this.value)">
+                        <span class="value-display" id="density-value">1</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Colors Section -->
+            <div class="control-section">
+                <h3>Colors</h3>
+
+                <div class="color-group">
+                    <label>Clay</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color1" value="#c9693a" onchange="updateColor('color1', this.value)">
+                        <span class="color-value" id="color1-value">#c9693a</span>
+                    </div>
+                </div>
+
+                <div class="color-group">
+                    <label>Black Glaze</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color2" value="#1b1310" onchange="updateColor('color2', this.value)">
+                        <span class="color-value" id="color2-value">#1b1310</span>
+                    </div>
+                </div>
+
+                <div class="color-group">
+                    <label>Added White</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color3" value="#efe3cc" onchange="updateColor('color3', this.value)">
+                        <span class="color-value" id="color3-value">#efe3cc</span>
+                    </div>
+                </div>
+
+                <div class="color-group">
+                    <label>Added Red</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color4" value="#7c2c22" onchange="updateColor('color4', this.value)">
+                        <span class="color-value" id="color4-value">#7c2c22</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Section (ALWAYS KEEP THIS) -->
+            <div class="control-section">
+                <h3>Actions</h3>
+                <div class="button-row">
+                    <button class="button" onclick="initializeSystem()">Regenerate</button>
+                    <button class="button" onclick="resetParameters()">Reset</button>
+                </div>
+                <div class="button-row" style="margin-top:8px">
+                    <button class="button secondary" onclick="saveCanvas('kiln-' + params.mode + '-' + params.seed, 'png')">Download PNG</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Canvas Area -->
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <div class="loading">Initializing generative art...</div>
+            </div>
+        </div>
+    </div>
+    <textarea id="out" style="display:none"></textarea>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════════
+        // GENERATIVE ART PARAMETERS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        let params = {
+            seed: 12345,
+            mode: 'oracle',
+            oxygen: 0.35,
+            clouds: 0.45,
+            tremor: 1,
+            crazing: 0.4,
+            density: 1,
+            colorPalette: ['#c9693a', '#1b1310', '#efe3cc', '#7c2c22']
+        };
+
+        let defaultParams = { ...params, colorPalette: params.colorPalette.slice() };
+
+        // ?export=<mode>&seed=<n> renders one vessel full size with no UI and leaves the PNG
+        // as a data URL in #out (used to fire the game's assets headlessly).
+        const QS = new URLSearchParams(location.search);
+        const EXPORT = QS.get('export');
+        if (EXPORT) { params.mode = EXPORT; if (QS.get('seed')) params.seed = +QS.get('seed'); }
+
+        const SIZES = { oracle: [500, 700], agora: [500, 700], table: [1535, 752], clay: [600, 600], glaze: [600, 600] };
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // THE KILN
+        // The design is painted into a mask whose channels are material weights:
+        //   red = black glaze, green = added red, blue = added white, the rest = bare clay.
+        // Antialiased edges become partial thicknesses. Then a seeded atmosphere fires it.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        let W, H, M;
+        const GLAZE = [255, 0, 0], RED = [0, 255, 0], WHITE = [0, 0, 255], CLAY = [0, 0, 0];
+
+        function setup() {
+            pixelDensity(1);
+            const [w, h] = SIZES[params.mode];
+            let canvas = createCanvas(w, h);
+            if (EXPORT) {
+                document.querySelector('.container').style.display = 'none';
+                document.body.style.background = 'none';
+            } else {
+                canvas.parent('canvas-container');
+                document.querySelector('.loading').style.display = 'none';
+                document.getElementById('mode').value = params.mode;
+            }
+            noLoop();
+            initializeSystem();
+        }
+
+        function initializeSystem() {
+            const [w, h] = SIZES[params.mode];
+            if (width !== w || height !== h) resizeCanvas(w, h);
+            W = w; H = h;
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+            if (M) M.remove();
+            M = createGraphics(W, H);
+            M.pixelDensity(1);
+            paintIntention();
+            fire();
+            craze();
+            if (EXPORT) document.getElementById('out').textContent = document.querySelector('canvas').toDataURL('image/png');
+        }
+
+        function draw() { }
+
+        // ---- brush helpers: every stroke wavers under a slow noise field ----
+        const wob = (x, y, k) => (noise(x * 0.012 + k * 7.1, y * 0.012 + k * 3.3) - 0.5) * 2 * params.tremor * 2.2;
+        function paint(mat, w) { M.stroke(mat[0], mat[1], mat[2]); M.strokeWeight(w); M.noFill(); }
+        function fillWith(mat) { M.noStroke(); M.fill(mat[0], mat[1], mat[2]); }
+        function wavyPath(pts, closed) {
+            M.beginShape();
+            pts.forEach(([x, y]) => M.vertex(x + wob(x, y, 1), y + wob(x, y, 2)));
+            closed ? M.endShape(CLOSE) : M.endShape();
+        }
+        function circleBand(cx, cy, r, mat, w) {
+            const pts = [];
+            for (let a = 0; a < TWO_PI; a += 0.02) pts.push([cx + cos(a) * r, cy + sin(a) * r]);
+            paint(mat, w); wavyPath(pts, true);
+        }
+
+        // The running key: each unit is a hooked spiral sitting between a shared base and top line.
+        const KEY_UNIT = [[0, 1], [0, 0], [0.78, 0], [0.78, 0.62], [0.36, 0.62], [0.36, 0.32]];
+        function keyStrip(x0, y0, len, h, mat, map) {
+            const n = Math.max(1, Math.round(len / h)), u = len / n, lw = h / 7;
+            paint(mat, lw);
+            const P = map || ((s, t) => [x0 + s, y0 + t]);
+            for (let i = 0; i < n; i++) wavyPath(KEY_UNIT.map(([a, b]) => P(i * u + a * u, b * h * 0.86 + h * 0.07)));
+            wavyPath(Array.from({ length: 81 }, (_, k) => P(len * k / 80, h * 0.93)));
+            wavyPath(Array.from({ length: 81 }, (_, k) => P(len * k / 80, h * 0.07)));
+        }
+        function polarKey(cx, cy, r0, r1) {
+            const len = TWO_PI * r1, h = r1 - r0;
+            keyStrip(0, 0, len, h, GLAZE, (s, t) => { const a = s / r1 - HALF_PI, r = r1 - t * (r1 - r0) / h; return [cx + cos(a) * r, cy + sin(a) * r]; });
+        }
+        // Tongues: a frieze of rounded petals, alternating two materials.
+        function tongues(x0, y0, len, h, a, b, down) {
+            const n = Math.max(2, Math.round(len / (h * 0.62))), u = len / n;
+            for (let i = 0; i < n; i++) {
+                fillWith(i % 2 ? b : a);
+                const cx = x0 + i * u + u / 2;
+                M.beginShape();
+                for (let k = 0; k <= 16; k++) {
+                    const t = k / 16 * PI, px = cx - cos(t) * u * 0.42, py = down ? y0 + sin(t) * h * 0.9 : y0 + h - sin(t) * h * 0.9;
+                    M.vertex(px + wob(px, py, 3) * 0.5, py + wob(px, py, 4) * 0.5);
+                }
+                M.endShape(CLOSE);
+            }
+        }
+        function dotRow(x0, y0, len, r, mat, gap) {
+            fillWith(mat);
+            for (let x = x0; x <= x0 + len; x += gap) M.circle(x + wob(x, y0, 5) * 0.4, y0, r * 2);
+        }
+        function dotRowCircle(cx, cy, r, n) {
+            fillWith(CLAY);
+            for (let i = 0; i < n; i++) { const a = i / n * TWO_PI; M.circle(cx + cos(a) * r, cy + sin(a) * r, 4); }
+        }
+
+        // ---- the vessels ----
+        function paintIntention() {
+            M.background(0);
+            ({ oracle: paintOracle, agora: paintAgora, table: paintTable, clay: () => {}, glaze: () => M.background(255, 0, 0) })[params.mode]();
+        }
+
+        // Oracle: a glazed back. In the tondo a net-bound stone breathes vapour.
+        function paintOracle() {
+            M.background(255, 0, 0);
+            paint(CLAY, 2.2); M.rect(16, 16, W - 32, H - 32, 14);
+            paint(CLAY, 1.2); M.rect(24, 24, W - 48, H - 48, 10);
+            tongues(40, 36, W - 80, 26, CLAY, RED, true);
+            tongues(40, H - 62, W - 80, 26, CLAY, RED, false);
+            const cx = W / 2, cy = H / 2, R = 196;
+            fillWith(CLAY); M.circle(cx, cy, R * 2);
+            fillWith(GLAZE); M.circle(cx, cy, (R - 34) * 2);
+            polarKey(cx, cy, R - 30, R - 4);
+            circleBand(cx, cy, R - 42, CLAY, 1.6);
+            const inner = R - 48;
+            // the stone on its step
+            const base = cy + 92, dw = 84, dh = 132;
+            fillWith(CLAY); M.rect(cx - 104, base, 208, 14); M.rect(cx - 84, base - 10, 168, 12);
+            const dome = [];
+            for (let k = 0; k <= 40; k++) { const t = k / 40 * PI; dome.push([cx - cos(t) * dw, base - 10 - sin(t) * dh]); }
+            fillWith(CLAY); wavyPath(dome, true);
+            const inDome = (x, y) => y < base - 12 && ((x - cx) / dw) ** 2 + ((y - (base - 10)) / dh) ** 2 < 0.92;
+            // the knotted net, drifting from its ideal lattice
+            const step = 24, top = base - 10 - dh;
+            const cord = (i, dir) => (s) => {
+                const x = cx + s, y = top + (i * step) + dir * s * 0.75;
+                return [x, y + (noise(x * 0.03, y * 0.03, 9 + dir) - 0.5) * 7];
+            };
+            for (const dir of [1, -1]) for (let i = -8; i <= 14; i++) {
+                const f = cord(i, dir), seg = [];
+                const flush = () => { if (seg.length > 1) { paint(GLAZE, 1.7); wavyPath(seg.splice(0)); } else seg.length = 0; };
+                for (let s = -120; s <= 120; s += 3) { const [x, y] = f(s); if (inDome(x, y)) seg.push([x, y]); else flush(); }
+                flush();
+            }
+            fillWith(WHITE);
+            for (let i = -8; i <= 14; i++) for (let j = -8; j <= 14; j++) {
+                // crossing of cord i (dir +1) and cord j (dir -1)
+                const s = (j - i) * step / 1.5, x = cx + s, y = top + i * step + s * 0.75;
+                if (inDome(x, y) && random() < 0.9) M.circle(x + random(-1.2, 1.2), y + random(-1.2, 1.2), 4.4);
+            }
+            // pneuma: streams rising through a curling field, laid down as reserved lines
+            const streams = Math.round(46 * params.density);
+            for (let i = 0; i < streams; i++) {
+                // vapour breathes off the stone and climbs through a curling field
+                const t = random(0.06, 0.94) * PI, sc = random(1.04, 1.12);
+                let x = cx - cos(t) * dw * sc, y = base - 10 - sin(t) * dh * sc;
+                const pts = [];
+                for (let s = 0; s < 200; s++) {
+                    const a = -HALF_PI + (noise(x * 0.008, y * 0.008, 3.3) - 0.5) * 2.6 + (x - cx) * 0.004;
+                    x += cos(a) * 2.1; y += sin(a) * 2.1;
+                    if (dist(x, y, cx, cy) > inner - 6 || inDome(x, y)) break;
+                    pts.push([x, y]);
+                }
+                if (pts.length > 6) { paint(random() < 0.18 ? RED : CLAY, random(0.8, 1.7)); M.beginShape(); pts.forEach(p => M.vertex(p[0], p[1])); M.endShape(); }
+            }
+            fillWith(WHITE); [[44, 92], [W - 44, 92], [44, H - 92], [W - 44, H - 92]].forEach(([x, y]) => M.circle(x, y, 7));
+        }
+
+        // Agora: a clay back. In a black tondo stands an allotment stone, its slots filled by lot.
+        function paintAgora() {
+            M.background(0);
+            fillWith(GLAZE); M.rect(0, 0, W, H, 18);
+            fillWith(CLAY); M.rect(34, 34, W - 68, H - 68, 8);
+            keyStrip(40, 6, W - 80, 24, CLAY);
+            keyStrip(40, H - 30, W - 80, 24, CLAY);
+            paint(CLAY, 2); M.line(12, 40, 12, H - 40); M.line(W - 12, 40, W - 12, H - 40);
+            paint(GLAZE, 1.4); M.rect(44, 44, W - 88, H - 88, 6);
+            tongues(52, 52, W - 104, 24, GLAZE, RED, true);
+            tongues(52, H - 76, W - 104, 24, GLAZE, RED, false);
+            const cx = W / 2, cy = H / 2, R = 182;
+            fillWith(GLAZE); M.circle(cx, cy, R * 2);
+            circleBand(cx, cy, R - 10, CLAY, 1.6);
+            dotRowCircle(cx, cy, R - 20, 64);
+            // the stele
+            const sw = 150, sh = 214, sx = cx - sw / 2, sy = cy - sh / 2 + 10;
+            fillWith(CLAY);
+            wavyPath([[sx - 6, sy + 4], [cx, sy - 30], [sx + sw + 6, sy + 4]], true);
+            M.rect(sx, sy + 4, sw, sh);
+            M.rect(sx - 10, sy + sh + 2, sw + 20, 10);
+            paint(GLAZE, 1.2); M.line(sx + 6, sy + 16, sx + sw - 30, sy + 16);
+            // slots: a column per tribe, rows of tokens; the lot decides which are filled
+            const cols = 5, rows = 11, gx = sx + 12, gy = sy + 26, cw = (sw - 44) / cols, rh = (sh - 34) / rows;
+            const fillP = constrain(0.55 * params.density, 0.1, 0.95);
+            for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) {
+                const x = gx + c * cw, y = gy + r * rh;
+                fillWith(GLAZE); M.rect(x, y, cw - 6, rh - 5, 1.5);
+                if (random() < fillP) { fillWith(random() < 0.3 ? RED : WHITE); M.rect(x + 2, y + 1.5, cw - 10, rh - 8, 1); }
+            }
+            // the tube, with its black and white dice waiting to fall
+            const tx = sx + sw - 24;
+            fillWith(GLAZE); M.rect(tx, sy + 10, 14, sh - 14, 7);
+            for (let k = 0; k < 9; k++) { fillWith(random() < 0.5 ? WHITE : CLAY); M.circle(tx + 7, sy + 24 + k * 21, 8); }
+        }
+
+        // Table: a great clay plaque, glazed at the rim with a running key and a frieze of tongues.
+        function paintTable() {
+            M.background(0);
+            const b = 54;
+            fillWith(GLAZE); M.rect(0, 0, W, H, 26);
+            fillWith(CLAY); M.rect(b, b, W - 2 * b, H - 2 * b, 6);
+            keyStrip(70, 13, W - 140, 28, CLAY);
+            keyStrip(70, H - 41, W - 140, 28, CLAY);
+            keyStrip(0, 0, H - 140, 28, CLAY, (s, t) => [13 + t, 70 + s]);
+            keyStrip(0, 0, H - 140, 28, CLAY, (s, t) => [W - 41 + t, 70 + s]);
+            // rosettes in the glazed corners
+            [[27, 27], [W - 27, 27], [27, H - 27], [W - 27, H - 27]].forEach(([x, y]) => {
+                for (let k = 0; k < 8; k++) { const a = k * PI / 4; fillWith(k % 2 ? RED : CLAY); M.ellipse(x + cos(a) * 9, y + sin(a) * 9, 9, 9); }
+                fillWith(WHITE); M.circle(x, y, 7);
+            });
+            paint(GLAZE, 2.4); M.rect(b + 10, b + 10, W - 2 * b - 20, H - 2 * b - 20, 4);
+            tongues(b + 20, b + 14, W - 2 * b - 40, 26, GLAZE, RED, true);
+            tongues(b + 20, H - b - 40, W - 2 * b - 40, 26, GLAZE, RED, false);
+            dotRow(b + 30, b + 50, W - 2 * b - 60, 1.8, GLAZE, 14);
+            dotRow(b + 30, H - b - 50, W - 2 * b - 60, 1.8, GLAZE, 14);
+            // a faint slip wash marks the centre of the field
+            M.noStroke(); M.fill(30, 0, 0); M.ellipse(W / 2, H / 2, 900, 470);
+            M.fill(0); M.ellipse(W / 2, H / 2, 884, 456);
+            M.fill(14, 0, 0); M.ellipse(W / 2, H / 2, 860, 436);
+        }
+
+        // ---- firing: oxygen, fire-clouds, mottle, gloss, grit ----
+        function fieldGrid(scale, oct, z) {
+            const s = 4, gw = Math.ceil(W / s) + 2, gh = Math.ceil(H / s) + 2, a = new Float32Array(gw * gh);
+            noiseDetail(oct, 0.5);
+            for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) a[j * gw + i] = noise(i * s * scale, j * s * scale, z);
+            noiseDetail(4, 0.5);
+            return (x, y) => {
+                const fx = x / s, fy = y / s, i = fx | 0, j = fy | 0, u = fx - i, v = fy - j, p = j * gw + i;
+                return (a[p] * (1 - u) + a[p + 1] * u) * (1 - v) + (a[p + gw] * (1 - u) + a[p + gw + 1] * u) * v;
+            };
+        }
+        const smooth = (e0, e1, x) => { const t = constrain((x - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t); };
+        function hash(x, y) { let h = (x * 374761393 + y * 668265263 + params.seed * 982451653) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }
+        const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+
+        function fire() {
+            const C = rgb(params.colorPalette[0]), G = rgb(params.colorPalette[1]), Wt = rgb(params.colorPalette[2]), Rd = rgb(params.colorPalette[3]);
+            const ASH = [92, 82, 75], MIS = [112, 52, 30];
+            const oxygen = fieldGrid(0.0035, 4, 1.7), cloud = fieldGrid(0.0022, 3, 5.3), mottle = fieldGrid(0.02, 5, 8.9);
+            const ga = random(TWO_PI), gx = cos(ga), gy = sin(ga);
+            const gc = random(0.3, 0.7) * (abs(gx) * W + abs(gy) * H) + Math.min(0, gx * W) + Math.min(0, gy * H);
+            M.loadPixels(); loadPixels();
+            const mp = M.pixels, px = pixels;
+            for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+                const k = (y * W + x) * 4;
+                let g = mp[k] / 255, r = mp[k + 1] / 255, w = mp[k + 2] / 255;
+                const tot = g + r + w; if (tot > 1) { g /= tot; r /= tot; w /= tot; }
+                const c = Math.max(0, 1 - g - r - w);
+                const o = oxygen(x, y), f = cloud(x, y), m = mottle(x, y), grit = hash(x, y);
+                // clay: iron mottle, fine grit, grey where the fire was starved
+                const cl = 0.88 + m * 0.24 + (grit > 0.985 ? -0.16 : grit < 0.01 ? 0.08 : 0);
+                const smoke = params.clouds * smooth(0.5, 0.78, f) * (params.mode === 'table' ? 0.4 : 0.7);
+                // glaze: thin edges and oxygen-rich pockets misfire towards brown-red; gloss sweeps across
+                const mis = params.oxygen * smooth(0.45, 0.8, o) * (0.5 + 0.5 * (1 - g)) * 0.85;
+                const gl = Math.exp(-((((x * gx + y * gy) - gc) / (0.16 * (W + H))) ** 2)) * 0.13;
+                for (let ch = 0; ch < 3; ch++) {
+                    const clayC = (C[ch] * cl) * (1 - smoke) + ASH[ch] * smoke;
+                    const glazeC = G[ch] * (1 - mis) + MIS[ch] * mis + gl * 140 + (grit - 0.5) * 6;
+                    const whiteC = Wt[ch] * (0.94 + m * 0.08) * (1 - smoke * 0.35);
+                    const redC = Rd[ch] * (0.9 + m * 0.18);
+                    px[k + ch] = c * clayC + g * glazeC + w * whiteC + r * redC;
+                }
+                px[k + 3] = 255;
+            }
+            updatePixels();
+        }
+
+        // crazing: short branching walks, found only on a second look
+        function craze() {
+            const n = Math.round((W * H / 2400) * params.crazing);
+            strokeWeight(0.6); noFill();
+            for (let i = 0; i < n; i++) {
+                let x = random(W), y = random(H), a = random(TWO_PI);
+                stroke(random() < 0.5 ? 0 : 255, 14);
+                beginShape();
+                for (let s = 0; s < 14; s++) { vertex(x, y); a += random(-0.7, 0.7); x += cos(a) * 3.2; y += sin(a) * 3.2; }
+                endShape();
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // UI CONTROL HANDLERS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function updateParam(paramName, value) {
+            params[paramName] = paramName === 'mode' ? value : parseFloat(value);
+            const disp = document.getElementById(paramName + '-value');
+            if (disp) disp.textContent = value;
+            initializeSystem();
+        }
+
+        function updateColor(colorId, value) {
+            const i = { color1: 0, color2: 1, color3: 2, color4: 3 }[colorId];
+            params.colorPalette[i] = value;
+            document.getElementById(colorId + '-value').textContent = value;
+            initializeSystem();
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // SEED CONTROL FUNCTIONS - ALWAYS KEEP THESE
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function updateSeedDisplay() {
+            document.getElementById('seed-input').value = params.seed;
+        }
+
+        function updateSeed() {
+            let input = document.getElementById('seed-input');
+            let newSeed = parseInt(input.value);
+            if (newSeed && newSeed > 0) {
+                params.seed = newSeed;
+                initializeSystem();
+            } else {
+                // Reset to current seed if invalid
+                updateSeedDisplay();
+            }
+        }
+
+        function previousSeed() {
+            params.seed = Math.max(1, params.seed - 1);
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function nextSeed() {
+            params.seed = params.seed + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(Math.random() * 999999) + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function resetParameters() {
+            const mode = params.mode;
+            params = { ...defaultParams, colorPalette: defaultParams.colorPalette.slice(), mode };
+
+            // Update UI elements
+            ['oxygen', 'clouds', 'tremor', 'crazing', 'density'].forEach(k => {
+                document.getElementById(k).value = params[k];
+                document.getElementById(k + '-value').textContent = params[k];
+            });
+
+            // Reset colors
+            ['color1', 'color2', 'color3', 'color4'].forEach((id, i) => {
+                document.getElementById(id).value = params.colorPalette[i];
+                document.getElementById(id + '-value').textContent = params.colorPalette[i];
+            });
+
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        // Initialize UI on load
+        window.addEventListener('load', function() {
+            updateSeedDisplay();
+        });
+    </script>
+</body>
+</html>

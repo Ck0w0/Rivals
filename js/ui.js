@@ -301,17 +301,14 @@
     return `<div class="card back ${deck || 'oracle'}-back ${cls || ''}" ${attrs || ''}><div class="back-inner">${R.icon('laurels')}</div></div>`;
   }
 
-  // These ship with paintings in assets/cards.
-  const PAINTED = ['olives', 'bronze', 'marble', 'silver', 'hoplites'];
-
-  // Every card shows a full painted face: a painting from assets/cards/<key>.png if there is one
-  // (the resource cards have them), otherwise the drawn face from cardart.js.
+  // Every card shows a full painted face: a painting from assets/cards/<key>.png if someone adds one,
+  // otherwise the vase-painted face from cardart.js.
   function card(key, o) {
     o = o || {};
     const d = C[key];
     const act = o.act || (o.zone === 'hand' ? 'handCard' : o.zone === 'market' ? 'marketCard' : 'zoom');
     const arg = o.arg != null ? o.arg : o.id != null ? o.id : key;
-    const face = ui.art[key] || PAINTED.includes(key) ? `<img src="assets/cards/${key}.png" alt="${esc(d.name)}">` : R.cardFace ? R.cardFace(key) : null;
+    const face = ui.art[key] ? `<img src="assets/cards/${key}.png" alt="${esc(d.name)}">` : R.cardFace ? R.cardFace(key) : null;
     if (face) {
       return `<div class="card full-art t-${d.type} ${d.cat ? 'c-' + d.cat : ''} ${d.res ? 'res-' + d.res : ''} ${o.cls || ''}" ${o.style || ''} data-act="${act}" data-arg="${esc(arg)}" title="${esc(d.name)}">${face}</div>`;
     }
