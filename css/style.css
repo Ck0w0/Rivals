@@ -833,3 +833,27 @@ body:not(.in-game) #motes { display: none; }
 .seats .seat em, .seat-name { color: var(--ae-navy); }
 .pill { border-color: var(--ae-gold); color: var(--ae-navy); }
 .pill.on { background: var(--ae-blue); color: #ffffff; }
+
+/* ---------- performance: looping animations only change opacity or transform,
+   which the graphics card handles without redrawing the cards underneath ---------- */
+.title .t1, .title .t2 { animation: none; }
+.menu-panel { backdrop-filter: none; -webkit-backdrop-filter: none; background: linear-gradient(rgba(255, 255, 255, .96), rgba(240, 247, 253, .97)); }
+.glint { animation: none; }
+.hud .status.mine { animation: none; }
+.seat.active .plate { animation: none; box-shadow: 0 0 0 2px rgba(212, 166, 42, .7), 0 0 22px rgba(255, 210, 90, .8); }
+.table::after { display: none; }
+.card.playable, .card.affordable { animation: none; box-shadow: 0 0 0 2px #f2d27a, 0 4px 12px rgba(22, 56, 111, .3); }
+.card.playable::before, .card.affordable::before { content: ''; position: absolute; inset: -3px; z-index: -1; border-radius: calc(var(--cw) * .09); pointer-events: none;
+  box-shadow: 0 0 0 3px #f2d27a, 0 0 24px 4px rgba(255, 205, 80, .95); opacity: 0; animation: glowFade 1.8s ease-in-out infinite; will-change: opacity; }
+@keyframes glowFade { 50% { opacity: 1; } }
+.pile-oracle.ready .card { animation: deckBob 1.1s ease-in-out infinite; box-shadow: 0 0 0 3px #f2d27a, 0 0 22px rgba(255, 205, 80, .9); will-change: transform; }
+@keyframes deckBob { 50% { transform: translateY(-6px); } }
+.back-fan { will-change: transform; }
+.hand-fan .card, .market .card { will-change: transform; }
+.mbtn.primary::after { will-change: transform; }
+.flyer { will-change: transform; }
+body.no-motion .card.playable::before, body.no-motion .card.affordable::before { opacity: 1; }
+
+.gallery .tab { color: var(--ae-navy); background: #ffffff; border-color: rgba(31, 78, 156, .3); }
+.gallery .tab:hover { border-color: var(--ae-gold); }
+.gallery .tab.on { color: #ffffff; background: var(--ae-blue); border-color: var(--ae-gold); }

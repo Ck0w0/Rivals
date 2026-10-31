@@ -531,11 +531,10 @@ window.ROO = window.ROO || {};
     const ground = redFig ? 'assets/lapis.png' : 'assets/marble.png';
     return `<svg class="card-face" viewBox="0 0 252 352" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(name)}">
 <rect x="0" y="0" width="252" height="352" rx="14" fill="${MARBLE}"/>
-<image href="assets/marble.png" x="0" y="0" width="252" height="352" preserveAspectRatio="xMidYMid slice" opacity=".6"/>
 <rect x="2" y="2" width="248" height="348" rx="12.5" fill="none" stroke="${GOLD}" stroke-width="4"/>
 <rect x="8" y="8" width="236" height="336" rx="9" fill="none" stroke="${BLUE}" stroke-width="1"/>
 <rect x="16" y="14" width="220" height="32" rx="4" fill="${BLUE}"/>
-<image href="assets/lapis.png" x="16" y="14" width="220" height="32" preserveAspectRatio="xMidYMid slice"/>
+<rect x="16" y="14" width="220" height="14" rx="4" fill="#ffffff" opacity=".1"/>
 <rect x="16" y="14" width="220" height="32" rx="4" fill="none" stroke="${GOLD}" stroke-width="1.6"/>
 <path d="M25,30 l3,-3 l3,3 l-3,3Z M221,30 l3,-3 l3,3 l-3,3Z" fill="${GOLD}"/>
 <text x="126" y="${30 + nameSize * .34}" text-anchor="middle" font-family="'Marcellus SC', serif" font-size="${nameSize.toFixed(1)}" letter-spacing=".1em" fill="${WHITE}"${nameFit}>${esc(name.toUpperCase())}</text>
@@ -557,9 +556,44 @@ ${meander(20, 325, 212, GOLD)}
 
   R.CARD_ART = ART;
   // figure: 'black' or 'red' forces a technique; by default the Oracle deck is black-figure and the Agora red-figure.
+  // The full drawing of a face, built once per card and technique.
+  const built = new Map();
+  function fullFace(key, figure) {
+    const id = key + (figure ? '-' + figure : '');
+    if (!built.has(id)) {
+      let svg;
+      if (R.HEROES && R.HEROES[key]) svg = face(key, { name: R.HEROES[key].name, type: 'hero', text: R.HEROES[key].text });
+      else if (key === 'shield') svg = face('shield', { name: 'Shield', type: 'shield', text: 'Used in raids. If the raider picks a Shield, the raid fails.' });
+      else svg = face(key, R.CARDS[key], figure);
+      built.set(id, svg);
+    }
+    return built.get(id);
+  }
+  // In a page, each face is drawn once into a hidden sprite and every card on screen just points at it
+  // with <use>, so re-rendering the table only creates a few tiny elements per card.
+  let sprite = null;
+  const placed = new Set();
+  function symbolId(key, figure) {
+    const id = 'cf-' + key + (figure ? '-' + figure : '');
+    if (!placed.has(id)) {
+      if (!sprite) {
+        sprite = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        sprite.setAttribute('aria-hidden', 'true');
+        sprite.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
+        document.body.appendChild(sprite);
+      }
+      const inner = fullFace(key, figure).replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
+      sprite.insertAdjacentHTML('beforeend', `<symbol id="${id}" viewBox="0 0 252 352">${inner}</symbol>`);
+      placed.add(id);
+    }
+    return id;
+  }
+  // figure: 'black' or 'red' forces a technique; by default the Oracle deck is black-figure and the Agora red-figure.
   R.cardFace = function (key, figure) {
-    if (R.HEROES && R.HEROES[key]) return face(key, { name: R.HEROES[key].name, type: 'hero', text: R.HEROES[key].text });
-    if (key === 'shield') return face('shield', { name: 'Shield', type: 'shield', text: 'Used in raids. If the raider picks a Shield, the raid fails.' });
-    return face(key, R.CARDS[key], figure);
+    if (typeof document === 'undefined' || !document.body) return fullFace(key, figure);
+    const name = R.HEROES && R.HEROES[key] ? R.HEROES[key].name : key === 'shield' ? 'Shield' : R.CARDS[key].name;
+    return `<svg class="card-face" viewBox="0 0 252 352" role="img" aria-label="${esc(name)}"><use href="#${symbolId(key, figure)}"/></svg>`;
   };
+  // The complete standalone drawing, for exporting a face outside the game page.
+  R.cardFaceSVG = fullFace;
 })(window.ROO);

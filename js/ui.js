@@ -587,36 +587,43 @@
     setTimeout(() => b.remove(), mine ? 2100 : 1500);
   }
   // Gold motes drifting up through the light over the table, on a slow curling current.
+  // Drawn from one pre-rendered glow sprite at up to 30 frames a second, so they cost almost nothing.
   (function motes() {
-    if (calm()) return;
     const cv = document.createElement('canvas');
     cv.id = 'motes';
     document.body.appendChild(cv);
     const ctx = cv.getContext('2d');
-    let W = 0, H = 0, seed = 7;
+    const glow = document.createElement('canvas');
+    glow.width = glow.height = 32;
+    const gc = glow.getContext('2d'), grad = gc.createRadialGradient(16, 16, 0, 16, 16, 16);
+    grad.addColorStop(0, 'rgba(255, 236, 160, 1)');
+    grad.addColorStop(0.25, 'rgba(255, 210, 90, .9)');
+    grad.addColorStop(1, 'rgba(255, 200, 80, 0)');
+    gc.fillStyle = grad;
+    gc.fillRect(0, 0, 32, 32);
+    let W = 0, H = 0, seed = 7, last = 0, shown = false;
     const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
     const size = () => { W = cv.width = innerWidth; H = cv.height = innerHeight; };
     size();
     window.addEventListener('resize', size);
-    const pts = Array.from({ length: 42 }, () => ({ x: rnd() * W, y: rnd() * H, r: 0.8 + rnd() * 2, s: 0.12 + rnd() * 0.3, p: rnd() * 6.283 }));
+    const pts = Array.from({ length: 36 }, () => ({ x: rnd() * W, y: rnd() * H, r: 3 + rnd() * 6, s: 0.25 + rnd() * 0.6, p: rnd() * 6.283 }));
     function frame(t) {
       requestAnimationFrame(frame);
-      if (!document.body.classList.contains('in-game') || document.hidden) return;
-      if (calm()) { ctx.clearRect(0, 0, W, H); return; }
+      const on = document.body.classList.contains('in-game') && !document.hidden && !calm();
+      if (!on) { if (shown) { ctx.clearRect(0, 0, W, H); shown = false; } return; }
+      if (t - last < 33) return;
+      last = t;
+      shown = true;
       ctx.clearRect(0, 0, W, H);
       for (const m of pts) {
         const a = -Math.PI / 2 + Math.sin(m.x * 0.004 + t * 0.0002) * 0.9 + Math.cos(m.y * 0.003 - t * 0.00015) * 0.6;
         m.x += Math.cos(a) * m.s; m.y += Math.sin(a) * m.s;
         if (m.y < -10) { m.y = H + 10; m.x = rnd() * W; }
         if (m.x < -10) m.x = W + 10; else if (m.x > W + 10) m.x = -10;
-        const tw = 0.5 + 0.5 * Math.sin(t * 0.002 + m.p);
-        ctx.beginPath();
-        ctx.fillStyle = `rgba(255, 210, 90, ${0.25 + 0.5 * tw})`;
-        ctx.shadowColor = 'rgba(255, 215, 110, .9)';
-        ctx.shadowBlur = 8;
-        ctx.arc(m.x, m.y, m.r, 0, 6.283);
-        ctx.fill();
+        ctx.globalAlpha = 0.3 + 0.55 * (0.5 + 0.5 * Math.sin(t * 0.002 + m.p));
+        ctx.drawImage(glow, m.x - m.r, m.y - m.r, m.r * 2, m.r * 2);
       }
+      ctx.globalAlpha = 1;
     }
     requestAnimationFrame(frame);
   })();
@@ -874,8 +881,8 @@
 
   function tick() {
     document.querySelectorAll('[data-deadline]').forEach(el => {
-      const s = Math.max(0, Math.ceil((ui.deadlineAt - Date.now()) / 1000));
-      el.textContent = s + 's';
+      const s = Math.max(0, Math.ceil((ui.deadlineAt - Date.now()) / 1000)) + 's';
+      if (el.textContent !== s) el.textContent = s;
     });
     document.querySelectorAll('[data-pick-ring]').forEach(el => {
       const left = Math.max(0, ui.deadlineAt - Date.now());
@@ -887,8 +894,9 @@
     const left = v.clockPaused ? v.phaseRemaining : ui.turnDeadlineAt - Date.now();
     const s = Math.max(0, Math.ceil(left / 1000));
     const total = v.phase === 'draw' ? 10000 : 60000;
+    const shown = (v.clockPaused ? '⏸ ' : '') + (s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : s + 's');
     document.querySelectorAll('[data-turn-clock]').forEach(el => {
-      el.textContent = (v.clockPaused ? '⏸ ' : '') + (s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : s + 's');
+      if (el.textContent !== shown) el.textContent = shown;
       el.classList.toggle('low', s <= 10);
     });
     document.querySelectorAll('[data-turn-ring]').forEach(el => {
