@@ -8,7 +8,7 @@
     ['Online play', 'PeerJS (WebRTC)'],
     ['Fonts', 'Cinzel & Alegreya Sans (Google Fonts)'],
     ['Card icons', 'game-icons.net (CC BY 3.0) by Lorc, Delapouite, Skoll, Willdabeast, Caro Asercion, Cathelineau, DarkZaitzev and Pierre Leducq'],
-    ['Sound', 'Synthesised in the browser with the Web Audio API'],
+    ['Sound', 'Card, coin, blade, click and jingle recordings by Kenney (kenney.nl, CC0); magic and thunder synthesised in the browser'],
   ];
   const NAMES = ['Kleon', 'Daphne', 'Nikias', 'Ione', 'Xanthe', 'Lykos', 'Melita', 'Doros'];
 
@@ -488,7 +488,9 @@
   }
 
   // ---------- motion ----------
-  const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // The Animations setting decides; the operating system's "reduce motion" flag is often off-by-default on Windows PCs and
+  // would hide every animation, so it is not used.
+  const calm = () => !store.get('motion', true);
   function snapCards() {
     const m = new Map();
     document.querySelectorAll('#app [data-cid]').forEach(el => {
@@ -498,49 +500,86 @@
     return m;
   }
   const rectOf = sel => { const el = document.querySelector(sel); return el ? el.getBoundingClientRect() : null; };
+  // Cards still travelling to their place, by id, with the time they land.
+  const flying = new Map();
+
   // A copy of a card that travels from one place to another above everything else.
+  // With o.back it leaves the deck face down and turns face up half way, as if dealt into your hand.
   function ghost(html, from, to, o) {
     const g = document.createElement('div');
-    g.className = 'ghost';
-    g.innerHTML = html;
-    const c = g.firstElementChild;
-    c.removeAttribute('data-act');
-    c.style.cssText = `--cw:${to.width}px;--ch:${to.height}px;width:${to.width}px;height:${to.height}px;margin:0;transform:none;animation:none`;
+    g.className = 'flyer';
+    const dress = h => {
+      g.innerHTML = h;
+      const c = g.firstElementChild;
+      c.removeAttribute('data-act');
+      c.style.cssText = `--cw:${to.width}px;--ch:${to.height}px;width:${to.width}px;height:${to.height}px;margin:0;transform:none;animation:none;visibility:visible`;
+    };
+    dress(o.back || html);
     g.style.cssText = `left:${to.left}px;top:${to.top}px;width:${to.width}px;height:${to.height}px`;
     document.body.appendChild(g);
     const dx = from.left - to.left, dy = from.top - to.top, sx = from.width / to.width, sy = from.height / to.height;
-    const lift = `translate(${dx / 2}px, ${dy / 2 - 40}px) scale(${(sx + 1) / 2 * 1.08}, ${(sy + 1) / 2 * 1.08}) rotate(${dx > 0 ? -6 : 6}deg)`;
-    const a = g.animate([
+    const ms = o.ms || 640, delay = o.delay || 0;
+    const turn = o.back ? ' scaleX(0.02)' : '';
+    const mid = `translate(${dx * 0.45}px, ${dy * 0.45 - 46}px) scale(${(sx + 1) / 2 * 1.12}, ${(sy + 1) / 2 * 1.12}) rotate(${dx > 0 ? -8 : 8}deg)${turn}`;
+    const anim = g.animate([
       { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: o.fadeIn ? 0 : 1 },
-      { transform: lift, opacity: 1, offset: 0.5 },
+      { transform: mid, opacity: 1, offset: 0.5 },
       { transform: 'none', opacity: o.fadeOut ? 0 : 1 },
-    ], { duration: o.ms || 620, delay: o.delay || 0, easing: 'cubic-bezier(.25,.8,.25,1)', fill: 'backwards' });
-    a.onfinish = () => { g.remove(); if (o.done) o.done(); };
+    ], { duration: ms, delay, easing: 'cubic-bezier(.3,.7,.25,1)', fill: 'backwards' });
+    if (o.back) setTimeout(() => dress(html), delay + ms * 0.5);
+    anim.onfinish = () => { g.remove(); if (o.done) o.done(); };
   }
-  // Cards that moved glide from where they were; new ones are dealt from their deck; cards that left go to the discard.
+  // A card that only shifted along slides there smoothly, using the separate translate property
+  // so the rotation it has in your fanned hand is kept.
+  function slide(el, from, to) {
+    el.animate([{ translate: `${from.left - to.left}px ${from.top - to.top}px` }, { translate: '0 0' }],
+      { duration: 360, easing: 'cubic-bezier(.3,.8,.3,1)' });
+  }
+  // After every update: shifted cards slide, new cards are dealt from their deck (face down into your hand,
+  // straight into the market), bought cards fly to the buyer's stack and cards that left go to the discard pile.
   function animateCards(before) {
-    if (calm || !before || !before.size) return;
+    if (calm() || !before || !before.size) return;
+    const now = performance.now();
     const deck = rectOf('.pile-oracle .card'), supply = rectOf('.pile-agora .card'), discard = rectOf('.pile-discard .card');
+    const backHTML = cardBack('', '', 'oracle');
     const seen = new Set();
-    let k = 0;
+    let dealt = 0, placed = 0;
     document.querySelectorAll('#app [data-cid]').forEach(el => {
       const id = el.dataset.cid;
       seen.add(id);
       const to = el.getBoundingClientRect();
       if (!to.width) return;
+      // still in the air from an earlier update: stay hidden until it lands
+      const land = flying.get(id);
+      if (land && land > now) {
+        el.style.visibility = 'hidden';
+        setTimeout(() => { el.style.visibility = ''; }, land - now);
+        return;
+      }
       const prev = before.get(id);
-      if (prev && Math.abs(prev.r.left - to.left) < 3 && Math.abs(prev.r.top - to.top) < 3 && Math.abs(prev.r.width - to.width) < 3) return;
-      const from = prev ? prev.r : el.closest('#hand') ? deck : el.closest('.market') ? supply : null;
+      if (prev) {
+        const moved = Math.abs(prev.r.left - to.left) > 2 || Math.abs(prev.r.top - to.top) > 2;
+        const resized = Math.abs(prev.r.width - to.width) > to.width * 0.15;
+        if (!moved && !resized) return;
+        if (!resized) { slide(el, prev.r, to); return; }
+      }
+      const inHand = !!el.closest('#hand');
+      const from = prev ? prev.r : inHand ? deck : el.closest('.market') ? supply : null;
       if (!from) { el.classList.add('pop-in'); return; }
+      const delay = prev ? 0 : inHand ? dealt++ * 170 : placed++ * 110;
+      // the draw itself already makes a sound; each further card dealt gets its own slide
+      if (inHand && !prev && delay) setTimeout(() => R.sfx.play('draw'), delay);
+      const ms = prev ? 680 : inHand ? 620 : 520;
       el.style.visibility = 'hidden';
-      ghost(el.outerHTML, from, to, { delay: (k++) * 80, done: () => { el.style.visibility = ''; } });
+      flying.set(id, now + delay + ms);
+      ghost(el.outerHTML, from, to, { delay, ms, back: inHand && !prev ? backHTML : null, done: () => { el.style.visibility = ''; flying.delete(id); } });
     });
     before.forEach((prev, id) => {
       if (!seen.has(id) && discard) ghost(prev.html, prev.r, discard, { ms: 520, fadeOut: true });
     });
   }
   function turnBanner(text, mine) {
-    if (calm) return;
+    if (calm()) return;
     const b = document.createElement('div');
     b.className = 'turn-banner' + (mine ? ' mine' : '');
     b.innerHTML = `<span>${esc(text)}</span>`;
@@ -549,7 +588,7 @@
   }
   // Gold motes drifting up through the light over the table, on a slow curling current.
   (function motes() {
-    if (calm) return;
+    if (calm()) return;
     const cv = document.createElement('canvas');
     cv.id = 'motes';
     document.body.appendChild(cv);
@@ -563,6 +602,7 @@
     function frame(t) {
       requestAnimationFrame(frame);
       if (!document.body.classList.contains('in-game') || document.hidden) return;
+      if (calm()) { ctx.clearRect(0, 0, W, H); return; }
       ctx.clearRect(0, 0, W, H);
       for (const m of pts) {
         const a = -Math.PI / 2 + Math.sin(m.x * 0.004 + t * 0.0002) * 0.9 + Math.cos(m.y * 0.003 - t * 0.00015) * 0.6;

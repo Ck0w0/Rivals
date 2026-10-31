@@ -1,5 +1,6 @@
-// Sound effects, synthesised with the Web Audio API so no sound files are needed.
-// To use a recorded sound instead, drop assets/sfx/<name>.mp3 in place; it takes over automatically.
+// Sound effects. Most are recordings from Kenney's CC0 packs (assets/sfx), picked at random from a few takes and
+// slightly re-pitched so repeats don't sound mechanical. Magic sounds, and any recording the browser can't play,
+// are synthesised with the Web Audio API. Dropping assets/sfx/<name>.mp3 in place overrides a sound completely.
 window.ROO = window.ROO || {};
 (function (R) {
   const NAMES = ['click', 'draw', 'place', 'shuffle', 'coin', 'trade', 'raid', 'steal', 'clang', 'magic', 'zap',
@@ -26,6 +27,43 @@ window.ROO = window.ROO || {};
     return ctx;
   }
   ['pointerdown', 'keydown'].forEach(ev => window.addEventListener(ev, ensure, { capture: true }));
+
+  // Recordings: each sound is a list of layers, each layer a few takes (one is picked), a delay and a volume.
+  // A layer can also be a synthesised sound, by name.
+  const SAMPLES = {
+    click: [{ f: ['ui-click.wav'], v: 0.5 }],
+    tick: [{ f: ['ui-tick.wav'], v: 0.35 }],
+    draw: [{ f: ['card-slide-1.ogg', 'card-slide-2.ogg', 'card-slide-3.ogg', 'card-slide-4.ogg'] }],
+    place: [{ f: ['card-place-1.ogg', 'card-place-2.ogg', 'card-place-3.ogg', 'card-place-4.ogg'] }],
+    shuffle: [{ f: ['card-shuffle.ogg'] }],
+    coin: [{ f: ['coins-1.ogg', 'coins-2.ogg'], v: 0.8 }],
+    trade: [{ f: ['card-fan-1.ogg'] }, { f: ['coins-2.ogg'], at: 0.25, v: 0.7 }],
+    raid: [{ synth: 'horn' }, { f: ['blade-1.ogg', 'blade-2.ogg'], at: 0.12 }],
+    steal: [{ f: ['card-shove-1.ogg', 'card-shove-2.ogg', 'card-shove-3.ogg'] }, { f: ['coins-2.ogg'], at: 0.22, v: 0.6 }],
+    clang: [{ f: ['shield-clang.ogg'] }],
+    turn: [{ f: ['jingle-turn.ogg'], v: 0.6, fixed: true }],
+    victory: [{ f: ['jingle-victory.ogg'], v: 0.8, fixed: true }, { synth: 'magic', at: 0.9 }],
+    defeat: [{ f: ['jingle-defeat.ogg'], v: 0.7, fixed: true }],
+  };
+  const takes = {}; // file -> Audio element, once it has loaded
+  const OGG_OK = !!new Audio().canPlayType('audio/ogg; codecs="vorbis"');
+  Object.values(SAMPLES).forEach(layers => layers.forEach(l => (l.f || []).forEach(file => {
+    if (takes[file] !== undefined || (/\.ogg$/.test(file) && !OGG_OK)) return;
+    takes[file] = null;
+    const a = new Audio();
+    a.preload = 'auto';
+    a.addEventListener('canplaythrough', () => { takes[file] = a; }, { once: true });
+    a.src = `assets/sfx/${file}`;
+  })));
+  // A sound uses its recordings only when every recorded layer has loaded; otherwise it is synthesised.
+  const recorded = name => SAMPLES[name] && SAMPLES[name].every(l => !l.f || l.f.some(f => takes[f]));
+  function playTake(l) {
+    const ok = l.f.filter(f => takes[f]);
+    const a = takes[ok[Math.floor(Math.random() * ok.length)]].cloneNode();
+    a.volume = Math.min(1, prefs.volume * (l.v == null ? 1 : l.v));
+    if (!l.fixed) { a.preservesPitch = false; a.playbackRate = 0.94 + Math.random() * 0.12; }
+    a.play().catch(() => {});
+  }
 
   // Probe for recorded overrides.
   NAMES.forEach(name => {
@@ -108,6 +146,12 @@ window.ROO = window.ROO || {};
     },
     defeat: t => { [392, 349, 311, 262].forEach((f, k) => tone(f, t + k * 0.25, 0.5, { type: 'triangle', gain: 0.12 })); },
     error: t => tone(160, t, 0.18, { type: 'square', gain: 0.08, lowpass: 800 }),
+    // used as a layer under the recorded raid: a war horn over two drum hits
+    horn: t => {
+      tone(110, t, 0.9, { type: 'sawtooth', to: 130, gain: 0.16, attack: 0.08, lowpass: 900 });
+      tone(165, t + 0.05, 0.85, { type: 'sawtooth', gain: 0.09, attack: 0.1, lowpass: 900 });
+      [0, 0.22].forEach(d => tone(70, t + d, 0.25, { to: 40, gain: 0.45 }));
+    },
   };
 
   R.sfx = {
@@ -117,6 +161,16 @@ window.ROO = window.ROO || {};
         const a = files[name].cloneNode();
         a.volume = prefs.volume;
         a.play().catch(() => {});
+        return;
+      }
+      if (recorded(name)) {
+        SAMPLES[name].forEach(l => {
+          const go = () => {
+            if (l.f) playTake(l);
+            else if (ensure() && ctx.state === 'running') SYNTH[l.synth](ctx.currentTime + 0.01);
+          };
+          l.at ? setTimeout(go, l.at * 1000) : go();
+        });
         return;
       }
       if (!ensure() || ctx.state !== 'running') return;
@@ -130,6 +184,8 @@ window.ROO = window.ROO || {};
       try { localStorage.setItem('roo.sound', JSON.stringify(prefs)); } catch (e) { /* storage unavailable */ }
     },
     names: NAMES,
+    // Which sounds are playing recordings (true) and which are synthesised (false), e.g. for tests/sfx.html.
+    status() { const o = {}; NAMES.forEach(n => { o[n] = !files[n] && !!recorded(n); }); return o; },
     // Renders every sound offline and reports its peak level (used by tests/sfx.html).
     async selfTest() {
       const out = {};

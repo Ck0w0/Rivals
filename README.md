@@ -54,7 +54,7 @@ Drop images in and they appear automatically:
 | `assets/cards/<card>.png` | A painting of a whole card face, e.g. `assets/cards/siege.png`. It replaces the drawn face for that card. Card names are the keys in `js/cards.js`; paint at 63×88 proportions. |
 | `assets/sfx/<name>.mp3` | Replaces a built-in sound. Names: click, draw, place, shuffle, coin, trade, raid, steal, clang, magic, zap, thunder, turn, tick, victory, defeat, error. |
 
-Card icons come from [game-icons.net](https://game-icons.net) (CC BY 3.0); the authors are credited in-game under Credits. Sounds are synthesised in the browser, so there are no sound files to license.
+Card icons come from [game-icons.net](https://game-icons.net) (CC BY 3.0); the authors are credited in-game under Credits. Card, coin, blade, click and jingle sounds are recordings from Kenney's free packs (Casino Audio, RPG Audio, UI Audio and Music Jingles, all CC0, [kenney.nl](https://kenney.nl)) in `assets/sfx/`. Thunder, lightning and magic are synthesised in the browser.
 
 ## Files
 

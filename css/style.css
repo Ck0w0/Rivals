@@ -786,8 +786,8 @@ body.in-game { background: #dcecf8; }
 .trophy.done .trophy-tag small { color: #fff6dc; }
 
 /* ---------- motion ---------- */
-.ghost { position: fixed; z-index: 60; pointer-events: none; filter: drop-shadow(0 14px 18px rgba(22, 56, 111, .4)); }
-.ghost .card { position: relative; }
+.flyer { position: fixed; z-index: 60; pointer-events: none; filter: drop-shadow(0 14px 18px rgba(22, 56, 111, .4)); }
+.flyer .card { position: relative; }
 #motes { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
 body:not(.in-game) #motes { display: none; }
 .pop-in { animation: popIn .5s cubic-bezier(.3, 1.6, .5, 1) backwards; }
@@ -807,9 +807,6 @@ body:not(.in-game) #motes { display: none; }
 .turn-banner.mine span { color: var(--ae-gold-l); }
 @keyframes bannerSlide { 0% { transform: translateX(-60vw) skewX(-12deg); } 22% { transform: translateX(0) skewX(0); } 78% { transform: translateX(0); } 100% { transform: translateX(60vw) skewX(12deg); } }
 @keyframes bannerFade { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
-}
 
 /* phones held sideways: smaller stacks */
 @media (orientation: landscape) and (max-height: 540px) {
@@ -818,3 +815,21 @@ body:not(.in-game) #motes { display: none; }
   .trophy-tag { font-size: 9px; padding: 0 4px; }
   .seat-top .seat-info { flex-direction: row; align-items: flex-end; }
 }
+
+/* scroll pages (play, join, settings, lobby, rules): marble tablets on gold rods */
+.scroll { filter: drop-shadow(0 14px 26px rgba(22, 56, 111, .3)); }
+.scroll-rod { background: linear-gradient(#fff2c2, #e7c25a 45%, #b8891f); border-color: #8a6412; }
+.scroll-body { background: url("../assets/marble.png") center / cover, linear-gradient(90deg, #eef3f9, #ffffff 10%, #fbf8f1 50%, #ffffff 90%, #eef3f9);
+  border-left: 2px solid var(--ae-gold); border-right: 2px solid var(--ae-gold); color: var(--ae-navy); }
+.scroll-body h2 { color: var(--ae-blue); }
+.scroll-body h2::after { background: repeating-linear-gradient(90deg, var(--ae-gold) 0 6px, transparent 6px 10px) top / 100% 2px no-repeat,
+  repeating-linear-gradient(90deg, var(--ae-gold) 0 6px, transparent 6px 10px) bottom / 100% 2px no-repeat; opacity: .9; }
+.hint { color: #4a6288; }
+.field { color: var(--ae-navy); }
+.field input { border-color: var(--ae-gold); background: #ffffff; color: var(--ae-navy); }
+.field input:focus { outline: 3px solid rgba(31, 78, 156, .3); }
+.gbtn .key, .gbtn .key::after { border-color: var(--ae-gold); }
+.seats .seat { background: rgba(255, 255, 255, .8); border-color: var(--ae-gold); color: var(--ae-navy); }
+.seats .seat em, .seat-name { color: var(--ae-navy); }
+.pill { border-color: var(--ae-gold); color: var(--ae-navy); }
+.pill.on { background: var(--ae-blue); color: #ffffff; }
