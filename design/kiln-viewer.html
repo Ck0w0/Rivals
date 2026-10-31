@@ -358,8 +358,18 @@
                             <option value="oracle">Oracle card back</option>
                             <option value="agora">Agora card back</option>
                             <option value="table">Table</option>
-                            <option value="clay">Clay ground</option>
-                            <option value="glaze">Glaze ground</option>
+                            <option value="clay">Ground (marble or clay)</option>
+                            <option value="glaze">Glaze (lapis or black)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Palette</label>
+                    <div class="slider-container">
+                        <select id="palette" class="seed-input" style="margin-bottom:0" onchange="setPalette(this.value)">
+                            <option value="aegean">Aegean: marble, lapis and gold</option>
+                            <option value="attic">Attic: clay and black glaze</option>
                         </select>
                     </div>
                 </div>
@@ -410,34 +420,34 @@
                 <h3>Colors</h3>
 
                 <div class="color-group">
-                    <label>Clay</label>
+                    <label>Ground (marble / clay)</label>
                     <div class="color-picker-container">
-                        <input type="color" id="color1" value="#c9693a" onchange="updateColor('color1', this.value)">
-                        <span class="color-value" id="color1-value">#c9693a</span>
+                        <input type="color" id="color1" value="#f5f1e8" onchange="updateColor('color1', this.value)">
+                        <span class="color-value" id="color1-value">#f5f1e8</span>
                     </div>
                 </div>
 
                 <div class="color-group">
-                    <label>Black Glaze</label>
+                    <label>Glaze (lapis / black)</label>
                     <div class="color-picker-container">
-                        <input type="color" id="color2" value="#1b1310" onchange="updateColor('color2', this.value)">
-                        <span class="color-value" id="color2-value">#1b1310</span>
+                        <input type="color" id="color2" value="#1f4e9c" onchange="updateColor('color2', this.value)">
+                        <span class="color-value" id="color2-value">#1f4e9c</span>
                     </div>
                 </div>
 
                 <div class="color-group">
                     <label>Added White</label>
                     <div class="color-picker-container">
-                        <input type="color" id="color3" value="#efe3cc" onchange="updateColor('color3', this.value)">
-                        <span class="color-value" id="color3-value">#efe3cc</span>
+                        <input type="color" id="color3" value="#ffffff" onchange="updateColor('color3', this.value)">
+                        <span class="color-value" id="color3-value">#ffffff</span>
                     </div>
                 </div>
 
                 <div class="color-group">
-                    <label>Added Red</label>
+                    <label>Added Red / Gold</label>
                     <div class="color-picker-container">
-                        <input type="color" id="color4" value="#7c2c22" onchange="updateColor('color4', this.value)">
-                        <span class="color-value" id="color4-value">#7c2c22</span>
+                        <input type="color" id="color4" value="#d4a62a" onchange="updateColor('color4', this.value)">
+                        <span class="color-value" id="color4-value">#d4a62a</span>
                     </div>
                 </div>
             </div>
@@ -477,8 +487,12 @@
             tremor: 1,
             crazing: 0.4,
             density: 1,
-            colorPalette: ['#c9693a', '#1b1310', '#efe3cc', '#7c2c22']
+            palette: 'aegean',
+            colorPalette: ['#f5f1e8', '#1f4e9c', '#ffffff', '#d4a62a']
         };
+
+        // Aegean: the same four materials read as marble, lapis lazuli, white and gold leaf.
+        const PALETTES = { aegean: ['#f5f1e8', '#1f4e9c', '#ffffff', '#d4a62a'], attic: ['#c9693a', '#1b1310', '#efe3cc', '#7c2c22'] };
 
         let defaultParams = { ...params, colorPalette: params.colorPalette.slice() };
 
@@ -486,7 +500,11 @@
         // as a data URL in #out (used to fire the game's assets headlessly).
         const QS = new URLSearchParams(location.search);
         const EXPORT = QS.get('export');
-        if (EXPORT) { params.mode = EXPORT; if (QS.get('seed')) params.seed = +QS.get('seed'); }
+        if (EXPORT) {
+            params.mode = EXPORT;
+            if (QS.get('seed')) params.seed = +QS.get('seed');
+            if (QS.get('palette')) { params.palette = QS.get('palette'); params.colorPalette = PALETTES[params.palette].slice(); }
+        }
 
         const SIZES = { oracle: [500, 700], agora: [500, 700], table: [1535, 752], clay: [600, 600], glaze: [600, 600] };
 
@@ -683,30 +701,36 @@
             for (let k = 0; k < 9; k++) { fillWith(random() < 0.5 ? WHITE : CLAY); M.circle(tx + 7, sy + 24 + k * 21, 8); }
         }
 
-        // Table: a great clay plaque, glazed at the rim with a running key and a frieze of tongues.
+        // Table: a great plaque with a running key and a frieze of tongues. In the Aegean palette it is
+        // reversed, a lapis field inside a marble rim, so the white cards stand out on it.
         function paintTable() {
+            const aeg = params.palette === 'aegean';
+            const RIM = aeg ? CLAY : GLAZE, FIELD = aeg ? GLAZE : CLAY, KEY = aeg ? GLAZE : CLAY;
             M.background(0);
             const b = 54;
-            fillWith(GLAZE); M.rect(0, 0, W, H, 26);
-            fillWith(CLAY); M.rect(b, b, W - 2 * b, H - 2 * b, 6);
-            keyStrip(70, 13, W - 140, 28, CLAY);
-            keyStrip(70, H - 41, W - 140, 28, CLAY);
-            keyStrip(0, 0, H - 140, 28, CLAY, (s, t) => [13 + t, 70 + s]);
-            keyStrip(0, 0, H - 140, 28, CLAY, (s, t) => [W - 41 + t, 70 + s]);
-            // rosettes in the glazed corners
+            fillWith(RIM); M.rect(0, 0, W, H, 26);
+            if (aeg) { paint(RED, 3); M.rect(4, 4, W - 8, H - 8, 24); }
+            fillWith(FIELD); M.rect(b, b, W - 2 * b, H - 2 * b, 6);
+            keyStrip(70, 13, W - 140, 28, KEY);
+            keyStrip(70, H - 41, W - 140, 28, KEY);
+            keyStrip(0, 0, H - 140, 28, KEY, (s, t) => [13 + t, 70 + s]);
+            keyStrip(0, 0, H - 140, 28, KEY, (s, t) => [W - 41 + t, 70 + s]);
+            // rosettes in the corners of the rim
             [[27, 27], [W - 27, 27], [27, H - 27], [W - 27, H - 27]].forEach(([x, y]) => {
-                for (let k = 0; k < 8; k++) { const a = k * PI / 4; fillWith(k % 2 ? RED : CLAY); M.ellipse(x + cos(a) * 9, y + sin(a) * 9, 9, 9); }
-                fillWith(WHITE); M.circle(x, y, 7);
+                for (let k = 0; k < 8; k++) { const a = k * PI / 4; fillWith(k % 2 ? RED : (aeg ? GLAZE : CLAY)); M.ellipse(x + cos(a) * 9, y + sin(a) * 9, 9, 9); }
+                fillWith(aeg ? RED : WHITE); M.circle(x, y, 7);
             });
-            paint(GLAZE, 2.4); M.rect(b + 10, b + 10, W - 2 * b - 20, H - 2 * b - 20, 4);
-            tongues(b + 20, b + 14, W - 2 * b - 40, 26, GLAZE, RED, true);
-            tongues(b + 20, H - b - 40, W - 2 * b - 40, 26, GLAZE, RED, false);
-            dotRow(b + 30, b + 50, W - 2 * b - 60, 1.8, GLAZE, 14);
-            dotRow(b + 30, H - b - 50, W - 2 * b - 60, 1.8, GLAZE, 14);
-            // a faint slip wash marks the centre of the field
-            M.noStroke(); M.fill(30, 0, 0); M.ellipse(W / 2, H / 2, 900, 470);
-            M.fill(0); M.ellipse(W / 2, H / 2, 884, 456);
-            M.fill(14, 0, 0); M.ellipse(W / 2, H / 2, 860, 436);
+            if (aeg) { paint(RED, 3); M.rect(b, b, W - 2 * b, H - 2 * b, 6); }
+            paint(RIM, 2.4); M.rect(b + 10, b + 10, W - 2 * b - 20, H - 2 * b - 20, 4);
+            tongues(b + 20, b + 14, W - 2 * b - 40, 26, RIM, RED, true);
+            tongues(b + 20, H - b - 40, W - 2 * b - 40, 26, RIM, RED, false);
+            dotRow(b + 30, b + 50, W - 2 * b - 60, 1.8, aeg ? RED : GLAZE, 14);
+            dotRow(b + 30, H - b - 50, W - 2 * b - 60, 1.8, aeg ? RED : GLAZE, 14);
+            // a faint wash marks the centre of the field
+            const wash = (k) => M.fill(aeg ? 255 - k : k, 0, 0);
+            M.noStroke(); wash(30); M.ellipse(W / 2, H / 2, 900, 470);
+            wash(0); M.ellipse(W / 2, H / 2, 884, 456);
+            wash(14); M.ellipse(W / 2, H / 2, 860, 436);
         }
 
         // ---- firing: oxygen, fire-clouds, mottle, gloss, grit ----
@@ -726,7 +750,8 @@
 
         function fire() {
             const C = rgb(params.colorPalette[0]), G = rgb(params.colorPalette[1]), Wt = rgb(params.colorPalette[2]), Rd = rgb(params.colorPalette[3]);
-            const ASH = [92, 82, 75], MIS = [112, 52, 30];
+            const ASH = [92, 82, 75], MIS = [112, 52, 30], VEIN = [150, 166, 190], CALC = [92, 132, 200];
+            const aeg = params.palette === 'aegean';
             const oxygen = fieldGrid(0.0035, 4, 1.7), cloud = fieldGrid(0.0022, 3, 5.3), mottle = fieldGrid(0.02, 5, 8.9);
             const ga = random(TWO_PI), gx = cos(ga), gy = sin(ga);
             const gc = random(0.3, 0.7) * (abs(gx) * W + abs(gy) * H) + Math.min(0, gx * W) + Math.min(0, gy * H);
@@ -744,6 +769,25 @@
                 // glaze: thin edges and oxygen-rich pockets misfire towards brown-red; gloss sweeps across
                 const mis = params.oxygen * smooth(0.45, 0.8, o) * (0.5 + 0.5 * (1 - g)) * 0.85;
                 const gl = Math.exp(-((((x * gx + y * gy) - gc) / (0.16 * (W + H))) ** 2)) * 0.13;
+                if (aeg) {
+                    // marble: a pale ground crossed by warped grey-blue veins
+                    const v = Math.abs(Math.sin(x * 0.006 + y * 0.011 + o * 16 + f * 6));
+                    const v2 = Math.abs(Math.sin(x * 0.013 - y * 0.007 + m * 22 + o * 9));
+                    const vein = (1 - smooth(0, 0.035, v)) * 0.2 + (1 - smooth(0, 0.3, v)) * 0.05 + (1 - smooth(0, 0.02, v2)) * 0.1;
+                    // lapis: deep blue with paler calcite clouds and the odd fleck of golden pyrite
+                    const calc = smooth(0.55, 0.82, o) * 0.28, pyr = grit > 0.994;
+                    // gold leaf: a metallic shimmer in bands
+                    const sheen = 0.78 + 0.42 * (0.5 + 0.5 * Math.sin((x + y) * 0.035 + m * 7));
+                    for (let ch = 0; ch < 3; ch++) {
+                        const marbleC = C[ch] * (0.97 + m * 0.05) * (1 - vein) + VEIN[ch] * vein;
+                        const lapisC = (G[ch] * (0.86 + m * 0.28)) * (1 - calc) + CALC[ch] * calc + gl * 120;
+                        const goldC = Math.min(255, Rd[ch] * sheen);
+                        const whiteC = Wt[ch] * (0.97 + m * 0.03);
+                        px[k + ch] = c * marbleC + g * (pyr ? Math.min(255, Rd[ch] * 1.1) : lapisC) + w * whiteC + r * goldC;
+                    }
+                    px[k + 3] = 255;
+                    continue;
+                }
                 for (let ch = 0; ch < 3; ch++) {
                     const clayC = (C[ch] * cl) * (1 - smoke) + ASH[ch] * smoke;
                     const glazeC = G[ch] * (1 - mis) + MIS[ch] * mis + gl * 140 + (grit - 0.5) * 6;
@@ -762,7 +806,7 @@
             strokeWeight(0.6); noFill();
             for (let i = 0; i < n; i++) {
                 let x = random(W), y = random(H), a = random(TWO_PI);
-                stroke(random() < 0.5 ? 0 : 255, 14);
+                stroke(random() < 0.5 ? 0 : 255, params.palette === 'aegean' ? 7 : 14);
                 beginShape();
                 for (let s = 0; s < 14; s++) { vertex(x, y); a += random(-0.7, 0.7); x += cos(a) * 3.2; y += sin(a) * 3.2; }
                 endShape();
@@ -777,6 +821,16 @@
             params[paramName] = paramName === 'mode' ? value : parseFloat(value);
             const disp = document.getElementById(paramName + '-value');
             if (disp) disp.textContent = value;
+            initializeSystem();
+        }
+
+        function setPalette(name) {
+            params.palette = name;
+            params.colorPalette = PALETTES[name].slice();
+            ['color1', 'color2', 'color3', 'color4'].forEach((id, i) => {
+                document.getElementById(id).value = params.colorPalette[i];
+                document.getElementById(id + '-value').textContent = params.colorPalette[i];
+            });
             initializeSystem();
         }
 

@@ -18,18 +18,29 @@ Everyone needs an internet connection and their own copy of the game. They can e
 
 The game plays on phones held sideways. Held upright, it asks you to turn the phone. On Android the first tap also goes full screen and locks the screen sideways. On iPhone, use Share › Add to Home Screen to get rid of the browser bars.
 
-## The look: Attic Kiln
+## The look: Aegean Marble
 
-Every card is painted like an Athenian vase. Oracle cards (the ones you draw) are black-figure: dark figures on clay, with details scratched through to the clay. Agora cards (the market) are red-figure: the same style reversed, clay figures on black. Rules text sits on a white tablet, and each card family has its own thin accent colour round the picture.
+The game is bright Greek: white marble, lapis blue and gold. Oracle cards (the ones you draw) have blue figures on veined marble. Agora cards (the market) are the same style reversed, with marble-white figures on lapis. Every card is edged in gold, and each card family has its own accent colour round the picture.
+
+Each player's bought cards are shown as small cards stacked by category (Fleet, Polis, Treasure), with their points towards the target underneath. Click one to see it full size.
+
+The game moves:
+- cards fly from the decks into your hand and the market;
+- bought cards fly to the buyer, and played cards drift to the discard pile;
+- a banner sweeps in when the turn changes;
+- gold motes drift over the table;
+- cards you can play or afford glow, and the deck bounces when it's time to draw.
+
+People who turn on "reduce motion" in their system settings get a still version.
 
 The design files are in `design/`:
 
 | File | What it is |
 |---|---|
-| `design/theme-attic-kiln.md` | The colours and fonts |
+| `design/theme-aegean-marble.md` | The colours and fonts |
 | `design/card-philosophy.md`, `design/plate.html`, `design/plate-reserved-ground.png` | The card design idea and a sample plate |
-| `design/kiln-philosophy.md`, `design/kiln-viewer.html` | A p5.js program that "fires" the card backs, the table and the clay textures. Open it in a browser to try other seeds. |
-| `design/fire-assets.ps1` | Re-fires `assets/back-oracle.png`, `back-agora.png`, `table.png`, `clay.png` and `glaze.png` from the viewer |
+| `design/kiln-philosophy.md`, `design/kiln-viewer.html` | A p5.js program that makes the card backs, the table and the marble and lapis textures. Open it in a browser to try other seeds and palettes. |
+| `design/fire-assets.ps1` | Re-makes `assets/back-oracle.png`, `back-agora.png`, `table.png`, `marble.png` and `lapis.png` from the viewer |
 
 ## Custom art
 
@@ -55,7 +66,7 @@ Card icons come from [game-icons.net](https://game-icons.net) (CC BY 3.0); the a
 | `js/net.js` | Hosting, joining and reconnecting |
 | `js/ui.js` | Menus, lobby and the game table |
 | `js/scene.js` | Drawn menu backdrop and laurels |
-| `js/cardart.js` | The vase-painted card faces: drawings, the black-figure/red-figure pass and the card frame |
+| `js/cardart.js` | The card faces: drawings, the marble-and-lapis painting pass and the card frame |
 | `js/icons.js` | Card and UI icons (from game-icons.net) |
 | `js/sfx.js` | Sound effects, generated with the Web Audio API |
 | `tests/sfx.html` | Click to hear each sound; also checks none are silent |

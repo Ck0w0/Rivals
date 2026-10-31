@@ -403,11 +403,12 @@ window.ROO = window.ROO || {};
         P('M100,26 C88,8 104,-4 120,4 C140,14 160,30 170,60 C150,46 130,36 104,30Z', '#a8322a')),
   });
 
-  // ---- the vase-painting pass ----
-  // Black-figure (Oracle deck): figures in glaze on clay, outlines cut through as pale lines,
-  // light colours become added white and strong reds added red.
-  // Red-figure (Agora deck): the same drawing reversed, clay figures on a glaze ground.
-  const GLAZE = '#1b1310', CLAYC = '#c9693a', FIGC = '#d98a4e', WHITE = '#efe3cc', ADDRED = '#7c2c22', INCISE = '#e3a066';
+  // ---- the painting pass: Aegean palette ----
+  // Oracle deck: lapis-blue figures on veined marble, details drawn through in pale ice,
+  // light colours become pale gold and strong reds become gold leaf.
+  // Agora deck: the same drawing reversed, marble-white figures on lapis with blue relief lines.
+  const NAVY = '#16386f', BLUE = '#1f4e9c', MARBLE = '#fbf8f1', WHITE = '#ffffff', GOLD = '#d4a62a', GOLD_D = '#a87a12', PALEGOLD = '#f0d48a',
+    ICE = '#dfeafa', TABLET = '#f1f6fc', FIGW = '#f7f3ea';
   const fxGone = /<(path|circle|ellipse)[^>]*data-k="fx"[^>]*\/>/g;
   const panelGone = /<path d="M0,0 H200 V170 H0Z"[^>]*\/>/g;
   function hexRgb(h) {
@@ -429,8 +430,8 @@ window.ROO = window.ROO || {};
     return 'fig';
   }
   function vase(art, red) {
-    const fig = red ? FIGC : GLAZE, line = red ? GLAZE : INCISE;
-    const pick = (t) => t === 'white' ? WHITE : t === 'red' ? ADDRED : t === 'ink' ? GLAZE : t === 'pale' ? line : fig;
+    const fig = red ? FIGW : BLUE, line = red ? BLUE : ICE;
+    const pick = (t) => t === 'white' ? PALEGOLD : t === 'red' ? GOLD : t === 'ink' ? (red ? BLUE : NAVY) : t === 'pale' ? line : fig;
     // see-through tints (water, haze) have no place in a two-material picture
     const tint = /<(path|circle|ellipse)(?=[^>]*stroke="none")[^>]*opacity="(0?\.[0-5]\d*)"[^>]*\/>/g;
     return art.replace(fxGone, '').replace(panelGone, '').replace(tint, '').replace(/<(path|circle|ellipse)([^>]*)\/>/g, (m, tag, attrs) => {
@@ -451,12 +452,12 @@ window.ROO = window.ROO || {};
     });
   }
 
-  // Accent per family, and per resource: the only hue a card is allowed besides its materials.
+  // Accent per family, and per resource: the only hue a card is allowed besides marble, lapis and gold.
   const ACCENT = {
-    raid: '#a8402c', god: '#6b4f8a', reaction: '#3f6f8f', hidden: '#5b524b', event: '#3d4a7a', wild: '#c08a2e',
-    fleet: '#2f6a96', polis: '#9a7a46', treasure: '#b8902a', blessing: '#2f7f7a', chaos: '#8c2a3c', hero: '#8a5a2c', shield: '#6a7884',
+    raid: '#c0392b', god: '#7b4fb0', reaction: '#2a86c8', hidden: '#4f6178', event: '#3949ab', wild: '#d4a62a',
+    fleet: '#1f6fc2', polis: '#8e9aae', treasure: '#e0a81e', blessing: '#13a3a0', chaos: '#b0306a', hero: '#c98a2b', shield: '#7c8b9c',
   };
-  const RES_ACCENT = { olives: '#6f8a2e', bronze: '#c26a2c', silver: '#6f8299', marble: '#d8d2c4', hoplites: '#a8322a' };
+  const RES_ACCENT = { olives: '#6f9a2e', bronze: '#d2742c', silver: '#7f93ab', marble: '#d8d2c4', hoplites: '#c0392b' };
 
   function meander(x, y, w, col) {
     let d = `M${x},${y + 14} H${x + w} M${x},${y} H${x + w}`;
@@ -468,7 +469,7 @@ window.ROO = window.ROO || {};
     let out = '';
     for (let i = 0; i < n; i++) {
       const cx = x + i * u + u / 2;
-      out += `<path d="M${cx - u * .38},${y} A${u * .38},${u * .5} 0 0 0 ${cx + u * .38},${y} Z" fill="${i % 2 ? ADDRED : CLAYC}" stroke="none"/>`;
+      out += `<path d="M${cx - u * .38},${y} A${u * .38},${u * .5} 0 0 0 ${cx + u * .38},${y} Z" fill="${i % 2 ? GOLD : BLUE}" stroke="none"/>`;
     }
     return out;
   }
@@ -491,9 +492,9 @@ window.ROO = window.ROO || {};
     hoplites: P('M0,-7 L2,-2 V7 H-2 V-2Z', '#f2d0c8', 'stroke="none"'),
   };
   function gem(x, y, res) {
-    const fill = res ? RES_ACCENT[res] : '#c99a46';
+    const fill = res ? RES_ACCENT[res] : GOLD;
     const mark = res ? RES_MARK[res] : star(0, 0, 6, '#fff');
-    return g(`translate(${x},${y})`, `<circle r="11" fill="${fill}" stroke="${GLAZE}" stroke-width="2.2"/><circle r="12.6" fill="none" stroke="${WHITE}" stroke-width="1"/>` + mark);
+    return g(`translate(${x},${y})`, `<circle r="11" fill="${fill}" stroke="${NAVY}" stroke-width="2"/><circle r="12.6" fill="none" stroke="${WHITE}" stroke-width="1.2"/>` + mark);
   }
   const CAT_MARK = {
     fleet: P('M-8,2 H8 L5,6 H-5Z M0,2 V-8 L6,0 H0', WHITE, 'stroke="none"'),
@@ -501,7 +502,8 @@ window.ROO = window.ROO || {};
     treasure: C(0, 0, 7, WHITE, 'stroke="none"') + C(0, 0, 3.5, ACCENT.treasure, 'stroke="none"'),
   };
 
-  // The whole face: name register, tongue frieze, picture panel, white tablet, running key.
+  // The whole face: a marble card edged in gold, a lapis name band, a frieze of tongues,
+  // the picture, a pale tablet for the rules and a gold key on lapis at the foot.
   function face(key, d, figure) {
     const fam = d.type === 'hero' ? 'hero' : d.type === 'shield' ? 'shield' : family(d);
     const accent = d.res ? RES_ACCENT[d.res] : ACCENT[fam];
@@ -517,8 +519,8 @@ window.ROO = window.ROO || {};
     const lines = wrap(text, fs, 200);
     const lh = fs * 1.14, top = 283 - ((lines.length - 1) * lh) / 2 + fs * .35;
     let extras = '';
-    if (d.cat) extras += g('translate(36,82)', `<circle r="13" fill="${ACCENT[d.cat]}" stroke="${GLAZE}" stroke-width="2.2"/><circle r="15" fill="none" stroke="${WHITE}" stroke-width="1"/>` + CAT_MARK[d.cat]);
-    if (d.pts) extras += g('translate(216,82)', `<circle r="16" fill="${WHITE}" stroke="${GLAZE}" stroke-width="2.4"/><circle r="12.5" fill="none" stroke="${accent}" stroke-width="1.4"/><text y="6.5" text-anchor="middle" font-family="'Marcellus SC', serif" font-size="19" fill="${GLAZE}">${d.pts}</text>`);
+    if (d.cat) extras += g('translate(36,82)', `<circle r="13" fill="${ACCENT[d.cat]}" stroke="${NAVY}" stroke-width="2"/><circle r="15" fill="none" stroke="${WHITE}" stroke-width="1.2"/>` + CAT_MARK[d.cat]);
+    if (d.pts) extras += g('translate(216,82)', `<circle r="16" fill="${GOLD}" stroke="${NAVY}" stroke-width="2"/><circle r="12.5" fill="none" stroke="#fff3c4" stroke-width="1.4"/><text y="6.5" text-anchor="middle" font-family="'Marcellus SC', serif" font-size="19" fill="${NAVY}">${d.pts}</text>`);
     if (d.cost) {
       const list = [];
       Object.keys(d.cost).forEach(r => { for (let i = 0; i < d.cost[r]; i++) list.push(r); });
@@ -526,27 +528,30 @@ window.ROO = window.ROO || {};
     } else if (d.anyCost) {
       for (let i = 0; i < d.anyCost; i++) extras += gem(126 - (d.anyCost - 1) * 13 + i * 26, 214, null);
     }
-    const ground = redFig ? 'assets/glaze.png' : 'assets/clay.png';
+    const ground = redFig ? 'assets/lapis.png' : 'assets/marble.png';
     return `<svg class="card-face" viewBox="0 0 252 352" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(name)}">
-<rect x="0" y="0" width="252" height="352" rx="14" fill="${GLAZE}"/>
-<rect x="6" y="6" width="240" height="340" rx="10" fill="none" stroke="${CLAYC}" stroke-width="1.2"/>
-<rect x="16" y="14" width="220" height="32" rx="3" fill="${CLAYC}"/>
-<image href="assets/clay.png" x="16" y="14" width="220" height="32" preserveAspectRatio="xMidYMid slice"/>
-<path d="M24,30 h0.01 M30,30 h0.01 M222,30 h0.01 M228,30 h0.01" stroke="${GLAZE}" stroke-width="3.4" stroke-linecap="round"/>
-<text x="126" y="${30 + nameSize * .34}" text-anchor="middle" font-family="'Marcellus SC', serif" font-size="${nameSize.toFixed(1)}" letter-spacing=".1em" fill="${GLAZE}"${nameFit}>${esc(name.toUpperCase())}</text>
+<rect x="0" y="0" width="252" height="352" rx="14" fill="${MARBLE}"/>
+<image href="assets/marble.png" x="0" y="0" width="252" height="352" preserveAspectRatio="xMidYMid slice" opacity=".6"/>
+<rect x="2" y="2" width="248" height="348" rx="12.5" fill="none" stroke="${GOLD}" stroke-width="4"/>
+<rect x="8" y="8" width="236" height="336" rx="9" fill="none" stroke="${BLUE}" stroke-width="1"/>
+<rect x="16" y="14" width="220" height="32" rx="4" fill="${BLUE}"/>
+<image href="assets/lapis.png" x="16" y="14" width="220" height="32" preserveAspectRatio="xMidYMid slice"/>
+<rect x="16" y="14" width="220" height="32" rx="4" fill="none" stroke="${GOLD}" stroke-width="1.6"/>
+<path d="M25,30 l3,-3 l3,3 l-3,3Z M221,30 l3,-3 l3,3 l-3,3Z" fill="${GOLD}"/>
+<text x="126" y="${30 + nameSize * .34}" text-anchor="middle" font-family="'Marcellus SC', serif" font-size="${nameSize.toFixed(1)}" letter-spacing=".1em" fill="${WHITE}"${nameFit}>${esc(name.toUpperCase())}</text>
 ${tongueRow(18, 50, 216, 18)}
-<rect x="16" y="62" width="220" height="170" fill="${redFig ? GLAZE : CLAYC}"/>
+<rect x="16" y="62" width="220" height="170" fill="${redFig ? BLUE : MARBLE}"/>
 <image href="${ground}" x="16" y="62" width="220" height="170" preserveAspectRatio="xMidYMid slice"/>
-<svg x="26" y="62" width="200" height="170" viewBox="0 0 200 170" overflow="hidden"><g stroke="${GLAZE}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">${art}</g></svg>
-<rect x="16" y="62" width="220" height="170" fill="none" stroke="${accent}" stroke-width="2.4"/>
-<rect x="20.5" y="66.5" width="211" height="161" fill="none" stroke="${redFig ? CLAYC : GLAZE}" stroke-width=".8" opacity=".55"/>
+<svg x="26" y="62" width="200" height="170" viewBox="0 0 200 170" overflow="hidden"><g stroke="${NAVY}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">${art}</g></svg>
+<rect x="16" y="62" width="220" height="170" fill="none" stroke="${accent}" stroke-width="2.6"/>
+<rect x="20.5" y="66.5" width="211" height="161" fill="none" stroke="${GOLD}" stroke-width=".9" opacity=".8"/>
 ${extras}
-<rect x="16" y="240" width="220" height="78" rx="3" fill="${WHITE}"/>
-<rect x="20" y="244" width="212" height="70" rx="2" fill="none" stroke="${GLAZE}" stroke-width=".8" opacity=".4"/>
-<rect x="68" y="225" width="116" height="15" rx="7.5" fill="${accent}" stroke="${GLAZE}" stroke-width="1.6"/>
-<text x="126" y="235.6" text-anchor="middle" font-family="'Marcellus SC', serif" font-size="9.5" letter-spacing=".14em" fill="${d.res === 'marble' ? GLAZE : WHITE}">${esc(label.toUpperCase())}</text>
-<text font-family="'Alegreya Sans', sans-serif" font-weight="500" font-size="${fs}" fill="${GLAZE}" text-anchor="middle">${lines.map((l, i) => `<tspan x="126" y="${(top + i * lh).toFixed(1)}">${esc(l)}</tspan>`).join('')}</text>
-${meander(20, 324, 212, CLAYC)}
+<rect x="16" y="240" width="220" height="78" rx="4" fill="${TABLET}" stroke="${GOLD}" stroke-width="1.2"/>
+<rect x="66" y="225" width="120" height="16" rx="8" fill="${accent}" stroke="${WHITE}" stroke-width="1.6"/>
+<text x="126" y="236.2" text-anchor="middle" font-family="'Marcellus SC', serif" font-size="9.5" letter-spacing=".14em" fill="${d.res === 'marble' ? NAVY : WHITE}">${esc(label.toUpperCase())}</text>
+<text font-family="'Alegreya Sans', sans-serif" font-weight="500" font-size="${fs}" fill="${NAVY}" text-anchor="middle">${lines.map((l, i) => `<tspan x="126" y="${(top + i * lh).toFixed(1)}">${esc(l)}</tspan>`).join('')}</text>
+<rect x="16" y="322" width="220" height="20" rx="3" fill="${BLUE}"/>
+${meander(20, 325, 212, GOLD)}
 </svg>`;
   }
 

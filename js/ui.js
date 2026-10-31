@@ -310,7 +310,7 @@
     const arg = o.arg != null ? o.arg : o.id != null ? o.id : key;
     const face = ui.art[key] ? `<img src="assets/cards/${key}.png" alt="${esc(d.name)}">` : R.cardFace ? R.cardFace(key) : null;
     if (face) {
-      return `<div class="card full-art t-${d.type} ${d.cat ? 'c-' + d.cat : ''} ${d.res ? 'res-' + d.res : ''} ${o.cls || ''}" ${o.style || ''} data-act="${act}" data-arg="${esc(arg)}" title="${esc(d.name)}">${face}</div>`;
+      return `<div class="card full-art t-${d.type} ${d.cat ? 'c-' + d.cat : ''} ${d.res ? 'res-' + d.res : ''} ${o.cls || ''}" ${o.style || ''} data-act="${act}" data-arg="${esc(arg)}"${o.id != null ? ` data-cid="${o.id}"` : ''} title="${esc(d.name)}">${face}</div>`;
     }
     const art = ui.art[key] ? `<img src="assets/cards/${key}.png" alt="">` : R.icon(key, 'art-ico');
     const pts = d.pts ? `<div class="pts" title="${d.pts} point${d.pts > 1 ? 's' : ''}">${d.pts}</div>` : '';
@@ -331,6 +331,19 @@
       return `<div class="medal c-${cat} ${pts >= p.needed ? 'done' : ''}" style="--p:${pct}%" title="${R.CAT_NAME[cat]}: ${pts} of ${p.needed}">
         <div class="medal-in">${R.icon(cat)}<b>${pts}</b></div></div>`;
     }).join('')}<span class="need">/${p.needed}</span></div>`;
+  }
+
+  // The cards a player has bought, in one small stack per category, with the points they make towards the target.
+  function trophies(p, mine) {
+    return `<div class="trophies ${mine ? 'mine' : ''}">${R.CATS.map(cat => {
+      const cards = p.table.filter(c => C[c.key].cat === cat).sort((a, b) => C[b.key].pts - C[a.key].pts);
+      const pts = p.points[cat];
+      return `<div class="trophy c-${cat} ${pts >= p.needed ? 'done' : ''}" title="${R.CAT_NAME[cat]}: ${pts} of ${p.needed} points">
+        <div class="trophy-stack">${cards.length
+          ? cards.map((c, k) => `<div class="mini" data-act="zoom" data-arg="${c.key}" data-cid="${c.id}" style="--k:${k}">${R.cardFace(c.key)}</div>`).join('')
+          : `<div class="mini slot">${R.icon(cat)}</div>`}</div>
+        <span class="trophy-tag">${pts}<small>/${p.needed}</small></span></div>`;
+    }).join('')}</div>`;
   }
 
   function tableau(p, emptyText) {
@@ -368,11 +381,11 @@
     return `<div class="seat seat-${pos} ${v.turn === i && v.winner == null ? 'active' : ''} ${p.connected ? '' : 'offline'}">
       ${backFan(p.handCount)}
       <div class="plate">${avatar(p)}<div class="who"><b>${esc(p.name)}</b><small>${p.bot ? 'Computer' : p.connected ? 'Player' : 'Offline · bot playing'}</small></div></div>
-      <div class="seat-info">${medals(p)}${badges(p)}${tableau(p)}</div></div>`;
+      <div class="seat-info">${trophies(p)}${badges(p)}</div></div>`;
   }
 
-  function pile(inner, count, label, title) {
-    return `<div class="pile" title="${title}">${inner}<b class="count">${count}</b><span class="pile-label">${label}</span></div>`;
+  function pile(inner, count, label, title, cls) {
+    return `<div class="pile ${cls || ''}" title="${title}">${inner}<b class="count">${count}</b><span class="pile-label">${label}</span></div>`;
   }
 
   // ---------- game screen ----------
@@ -426,6 +439,7 @@
     const seats = { left: '', top: '', right: '' };
     others.forEach((i, k) => { seats[pos[k]] += seat(v, i, pos[k]); });
     const last = v.log[v.log.length - 1];
+    const before = ui.screen === 'game' ? snapCards() : null;
     setScreen('game', `<div class="game">
       <header class="hud">
         <div class="hud-left">
@@ -444,11 +458,11 @@
         <div class="seats-right">${seats.right}</div>
         <div class="table">
           <div class="table-area">
-            <div class="pile-col">${pile(cardBack('stack', '', 'agora'), v.agoraCount, 'Agora Supply', 'Agora supply: refills the market')}</div>
+            <div class="pile-col">${pile(cardBack('stack', '', 'agora'), v.agoraCount, 'Agora Supply', 'Agora supply: refills the market', 'pile-agora')}</div>
             <div class="market">${v.market.map(c => c ? card(c.key, { id: c.id, zone: 'market', cls: free && v.buysLeft && canBuy(v, c.key) ? 'affordable' : '' }) : '<div class="card empty"></div>').join('')}</div>
             <div class="pile-col">
-              ${pile(v.oracleDiscardTop ? card(v.oracleDiscardTop, { cls: 'stack' }) : '<div class="card empty stack"></div>', v.oracleDiscardCount, 'Discard', 'Oracle discard pile')}
-              ${pile(cardBack('stack', '', 'oracle'), v.oracleCount, 'Oracle Deck', 'Oracle deck: you draw from here')}
+              ${pile(v.oracleDiscardTop ? card(v.oracleDiscardTop, { cls: 'stack' }) : '<div class="card empty stack"></div>', v.oracleDiscardCount, 'Discard', 'Oracle discard pile', 'pile-discard')}
+              ${pile(cardBack('stack', '', 'oracle'), v.oracleCount, 'Oracle Deck', 'Oracle deck: you draw from here', 'pile-oracle' + (mustDraw(v) ? ' ready' : ''))}
             </div>
           </div>
         </div>
@@ -456,7 +470,7 @@
       <section class="me-zone ${myTurn ? 'active' : ''}">
         <div class="me-info">
           <div class="plate">${avatar(me)}<div class="who"><b>${esc(me.name)}</b><small>You · ${me.hand.length} cards</small></div></div>
-          ${medals(me, true)}${badges(me)}${tableau(me, 'Buy from the Agora to score points')}</div>
+          ${trophies(me, true)}${badges(me)}</div>
         <div class="hand-fan" id="hand">${handHTML || '<span class="hint">Your hand is empty.</span>'}</div>
         <div class="me-ctrl">${controls}</div>
       </section>
@@ -464,9 +478,108 @@
         <div class="log" id="log">${v.log.map(l => `<p class="${/^—/.test(l.text) ? 'turn' : ''}">${esc(l.text)}</p>`).join('')}</div></aside>
     </div>`, true);
     fitHand();
+    animateCards(before);
+    if (ui.lastTurn !== v.turn && v.winner == null) {
+      if (ui.lastTurn != null) turnBanner(v.turn === v.you ? 'Your turn' : `${v.players[v.turn].name}'s turn`, v.turn === v.you);
+      ui.lastTurn = v.turn;
+    }
     const log = document.getElementById('log');
     if (stick) log.scrollTop = log.scrollHeight;
   }
+
+  // ---------- motion ----------
+  const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function snapCards() {
+    const m = new Map();
+    document.querySelectorAll('#app [data-cid]').forEach(el => {
+      const r = el.getBoundingClientRect();
+      if (r.width) m.set(el.dataset.cid, { r, html: el.outerHTML });
+    });
+    return m;
+  }
+  const rectOf = sel => { const el = document.querySelector(sel); return el ? el.getBoundingClientRect() : null; };
+  // A copy of a card that travels from one place to another above everything else.
+  function ghost(html, from, to, o) {
+    const g = document.createElement('div');
+    g.className = 'ghost';
+    g.innerHTML = html;
+    const c = g.firstElementChild;
+    c.removeAttribute('data-act');
+    c.style.cssText = `--cw:${to.width}px;--ch:${to.height}px;width:${to.width}px;height:${to.height}px;margin:0;transform:none;animation:none`;
+    g.style.cssText = `left:${to.left}px;top:${to.top}px;width:${to.width}px;height:${to.height}px`;
+    document.body.appendChild(g);
+    const dx = from.left - to.left, dy = from.top - to.top, sx = from.width / to.width, sy = from.height / to.height;
+    const lift = `translate(${dx / 2}px, ${dy / 2 - 40}px) scale(${(sx + 1) / 2 * 1.08}, ${(sy + 1) / 2 * 1.08}) rotate(${dx > 0 ? -6 : 6}deg)`;
+    const a = g.animate([
+      { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: o.fadeIn ? 0 : 1 },
+      { transform: lift, opacity: 1, offset: 0.5 },
+      { transform: 'none', opacity: o.fadeOut ? 0 : 1 },
+    ], { duration: o.ms || 620, delay: o.delay || 0, easing: 'cubic-bezier(.25,.8,.25,1)', fill: 'backwards' });
+    a.onfinish = () => { g.remove(); if (o.done) o.done(); };
+  }
+  // Cards that moved glide from where they were; new ones are dealt from their deck; cards that left go to the discard.
+  function animateCards(before) {
+    if (calm || !before || !before.size) return;
+    const deck = rectOf('.pile-oracle .card'), supply = rectOf('.pile-agora .card'), discard = rectOf('.pile-discard .card');
+    const seen = new Set();
+    let k = 0;
+    document.querySelectorAll('#app [data-cid]').forEach(el => {
+      const id = el.dataset.cid;
+      seen.add(id);
+      const to = el.getBoundingClientRect();
+      if (!to.width) return;
+      const prev = before.get(id);
+      if (prev && Math.abs(prev.r.left - to.left) < 3 && Math.abs(prev.r.top - to.top) < 3 && Math.abs(prev.r.width - to.width) < 3) return;
+      const from = prev ? prev.r : el.closest('#hand') ? deck : el.closest('.market') ? supply : null;
+      if (!from) { el.classList.add('pop-in'); return; }
+      el.style.visibility = 'hidden';
+      ghost(el.outerHTML, from, to, { delay: (k++) * 80, done: () => { el.style.visibility = ''; } });
+    });
+    before.forEach((prev, id) => {
+      if (!seen.has(id) && discard) ghost(prev.html, prev.r, discard, { ms: 520, fadeOut: true });
+    });
+  }
+  function turnBanner(text, mine) {
+    if (calm) return;
+    const b = document.createElement('div');
+    b.className = 'turn-banner' + (mine ? ' mine' : '');
+    b.innerHTML = `<span>${esc(text)}</span>`;
+    document.body.appendChild(b);
+    setTimeout(() => b.remove(), mine ? 2100 : 1500);
+  }
+  // Gold motes drifting up through the light over the table, on a slow curling current.
+  (function motes() {
+    if (calm) return;
+    const cv = document.createElement('canvas');
+    cv.id = 'motes';
+    document.body.appendChild(cv);
+    const ctx = cv.getContext('2d');
+    let W = 0, H = 0, seed = 7;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const size = () => { W = cv.width = innerWidth; H = cv.height = innerHeight; };
+    size();
+    window.addEventListener('resize', size);
+    const pts = Array.from({ length: 42 }, () => ({ x: rnd() * W, y: rnd() * H, r: 0.8 + rnd() * 2, s: 0.12 + rnd() * 0.3, p: rnd() * 6.283 }));
+    function frame(t) {
+      requestAnimationFrame(frame);
+      if (!document.body.classList.contains('in-game') || document.hidden) return;
+      ctx.clearRect(0, 0, W, H);
+      for (const m of pts) {
+        const a = -Math.PI / 2 + Math.sin(m.x * 0.004 + t * 0.0002) * 0.9 + Math.cos(m.y * 0.003 - t * 0.00015) * 0.6;
+        m.x += Math.cos(a) * m.s; m.y += Math.sin(a) * m.s;
+        if (m.y < -10) { m.y = H + 10; m.x = rnd() * W; }
+        if (m.x < -10) m.x = W + 10; else if (m.x > W + 10) m.x = -10;
+        const tw = 0.5 + 0.5 * Math.sin(t * 0.002 + m.p);
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(255, 210, 90, ${0.25 + 0.5 * tw})`;
+        ctx.shadowColor = 'rgba(255, 215, 110, .9)';
+        ctx.shadowBlur = 8;
+        ctx.arc(m.x, m.y, m.r, 0, 6.283);
+        ctx.fill();
+      }
+    }
+    requestAnimationFrame(frame);
+  })();
 
   // Overlap hand cards just enough that they all fit.
   function fitHand() {
